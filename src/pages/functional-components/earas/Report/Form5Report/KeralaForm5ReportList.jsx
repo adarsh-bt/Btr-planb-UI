@@ -49,6 +49,7 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
@@ -114,8 +115,8 @@ function KeralaForm5ReportList() {
   const [error, setError] = useState(null);
   const [masterDistrictsLoading, setMasterDistrictsLoading] = useState(true);
 
-  // Crop Name filter (UI kept). Backend does not accept cropName yet, so the
-  // param is not sent — see the TODO in fetchDashboardData to enable it later.
+  // Crop filter state
+  const [selectedCropKey, setSelectedCropKey] = useState('ALL');
   const [cropName, setCropName] = useState('ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
@@ -138,21 +139,17 @@ function KeralaForm5ReportList() {
       let response = null;
 
       // Try 1: Standard endpoint
-      try {
-        response = await api.get(`${BASE_URL}/earas-form1-entry/api/districts`);
-      } catch (err) {
-        console.log('Attempt 1 failed, trying alternative endpoint...');
-      }
+
 
       // Try 2: Alternative endpoint without the service prefix
-      if (!response || !response.data) {
-        try {
-          response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
 
-        } catch (err) {
-          console.log('Attempt 2 failed, trying alternative endpoint...');
-        }
+      try {
+        response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
+
+      } catch (err) {
+        console.log('Attempt 2 failed, trying alternative endpoint...');
       }
+
 
       // Try 3: Direct API call
       if (!response || !response.data) {
@@ -226,6 +223,7 @@ function KeralaForm5ReportList() {
       const response = await api.get(
         `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
       );
+      console.log(`${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`)
       if (response.data && Array.isArray(response.data)) {
         setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
       }
@@ -267,23 +265,27 @@ function KeralaForm5ReportList() {
       // TODO: enable when the backend controller accepts a cropName param.
       // if (cropName && cropName !== 'ALL') params.append('cropName', cropName);
 
-      // Crop filter — backend now accepts cropId
-      if (cropName !== 'ALL') {
-        const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
-        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+      // Crop filter — pass cropId and selectionFromOutOfCluster
+      if (selectedCropKey !== 'ALL') {
+        const selectedCrop = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+        if (selectedCrop && selectedCrop.cropId != null) {
+          params.append('cropId', selectedCrop.cropId);
+          params.append(
+            'selectionFromOutOfCluster',
+            Boolean(selectedCrop.selectionFromOutOfCluster === true || selectedCrop.selectionFromOutOfCluster === 'true')
+          );
+        }
       }
 
       url += `?${params.toString()}`;
 
-
+      console.log("url  kerala " + url)
       const response = await api.get(url);
 
       if (response.data) {
         setApiData(response.data);
 
-        // Populate the crop dropdown if/when the endpoint returns a cropList.
-        // (Currently not returned, so the dropdown stays at ALL.)
-        if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
+        if (selectedCropKey === 'ALL' && Array.isArray(response.data.cropList) && cropOptions.length === 0) {
           setCropOptions(response.data.cropList);
         }
       }
@@ -327,6 +329,7 @@ function KeralaForm5ReportList() {
       const merged = districtsList.map((district) => {
         const districtName = district.districtName || district.name || district.distNameEn || '';
         const apiData = apiDataMap[districtName.toLowerCase()] || {};
+        const missing = apiData.missing ?? apiData.missingCrops ?? apiData.missingCce ?? 0;
 
         // Check if this district has any data
         const hasData = (apiData.allowedCCECrops || 0) > 0 ||
@@ -335,7 +338,8 @@ function KeralaForm5ReportList() {
           (apiData.ongoing || 0) > 0 ||
           (apiData.notAvailable || 0) > 0 ||
           (apiData.notStarted || 0) > 0 ||
-          (apiData.underReview || 0) > 0;
+          (apiData.underReview || 0) > 0 ||
+          missing > 0;
 
         return {
           id: district.id || district.districtId || apiData.districtId || `dist_${Math.random()}`,
@@ -347,6 +351,7 @@ function KeralaForm5ReportList() {
           notAvailable: apiData.notAvailable || 0,
           notStarted: apiData.notStarted || 0,
           underReview: apiData.underReview || 0,
+          missing: missing,
           hasData: hasData
         };
       });
@@ -356,24 +361,29 @@ function KeralaForm5ReportList() {
     }
 
 
-    return apiDistricts.map((d) => ({
-      id: d.districtId || `dist_${Math.random()}`,
-      district: d.districtName || 'Unknown District',
-      allowtedCce: d.allowedCCECrops || 0,
-      selectedCce: d.selectedCce || 0,
-      completed: d.completed || 0,
-      ongoing: d.ongoing || 0,
-      notAvailable: d.notAvailable || 0,
-      notStarted: d.notStarted || 0,
-      underReview: d.underReview || 0,
-      hasData: (d.allowedCCECrops || 0) > 0 ||
-        (d.selectedCce || 0) > 0 ||
-        (d.completed || 0) > 0 ||
-        (d.ongoing || 0) > 0 ||
-        (d.notAvailable || 0) > 0 ||
-        (d.notStarted || 0) > 0 ||
-        (d.underReview || 0) > 0
-    }));
+    return apiDistricts.map((d) => {
+      const missing = d.missing ?? d.missingCrops ?? d.missingCce ?? 0;
+      return {
+        id: d.districtId || `dist_${Math.random()}`,
+        district: d.districtName || 'Unknown District',
+        allowtedCce: d.allowedCCECrops || 0,
+        selectedCce: d.selectedCce || 0,
+        completed: d.completed || 0,
+        ongoing: d.ongoing || 0,
+        notAvailable: d.notAvailable || 0,
+        notStarted: d.notStarted || 0,
+        underReview: d.underReview || 0,
+        missing: missing,
+        hasData: (d.allowedCCECrops || 0) > 0 ||
+          (d.selectedCce || 0) > 0 ||
+          (d.completed || 0) > 0 ||
+          (d.ongoing || 0) > 0 ||
+          (d.notAvailable || 0) > 0 ||
+          (d.notStarted || 0) > 0 ||
+          (d.underReview || 0) > 0 ||
+          missing > 0
+      };
+    });
   }, [apiData, districtsList]);
 
   // Dynamic summary stats derived from transformed district data
@@ -385,6 +395,9 @@ function KeralaForm5ReportList() {
     const notAvailableSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.notAvailable || 0), 0);
     const notStartedSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.notStarted || 0), 0);
     const underReviewSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.underReview || 0), 0);
+    const missingSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.missing || 0), 0);
+
+    const topMissing = apiData?.missing ?? apiData?.missingCrops ?? apiData?.missingCce ?? 0;
 
     return {
       allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
@@ -393,7 +406,8 @@ function KeralaForm5ReportList() {
       ongoing: ongoingSum,
       notAvailable: notAvailableSum,
       notStarted: notStartedSum,
-      underReview: underReviewSum
+      underReview: underReviewSum,
+      missing: missingSum > 0 ? missingSum : topMissing
     };
   }, [apiData, transformApiDataToDistricts]);
 
@@ -416,7 +430,16 @@ function KeralaForm5ReportList() {
 
   // Handle filter changes
   const handleCropNameChange = (event) => {
-    setCropName(event.target.value);
+    const val = event.target.value;
+    setSelectedCropKey(val);
+    if (val === 'ALL') {
+      setCropName('ALL');
+    } else {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === val);
+      if (found) {
+        setCropName(found.cropName);
+      }
+    }
     setPage(0);
   };
 
@@ -442,6 +465,7 @@ function KeralaForm5ReportList() {
   };
 
   const handleClearFilters = () => {
+    setSelectedCropKey('ALL');
     setCropName('ALL');
     setFilterType('single');
     setSingleMonth(defaultSingleMonth);
@@ -455,7 +479,11 @@ function KeralaForm5ReportList() {
   const generateExcelFileName = () => {
     const parts = ['CCE_District_Report'];
 
-    if (cropName !== 'ALL') parts.push(cropName.replace(/\s+/g, '_'));
+    if (selectedCropKey !== 'ALL') {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+      const cLabel = found ? found.cropName : cropName;
+      if (cLabel && cLabel !== 'ALL') parts.push(cLabel.replace(/\s+/g, '_'));
+    }
 
     if (filterType === 'single' && singleMonth) {
       parts.push(monthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -485,7 +513,8 @@ function KeralaForm5ReportList() {
       Ongoing: row.hasData ? row.ongoing : 'NA',
       'Not Available': row.hasData ? row.notAvailable : 'NA',
       'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
+      'Under Review': row.hasData ? row.underReview : 'NA',
+      Missing: row.hasData ? row.missing : 'NA'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
@@ -493,7 +522,7 @@ function KeralaForm5ReportList() {
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
       { wch: 5 }, { wch: 25 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -506,55 +535,78 @@ function KeralaForm5ReportList() {
     // Only navigate if district has data
     if (!hasData) return;
 
+    const selectedCrop = selectedCropKey !== 'ALL'
+      ? cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey)
+      : null;
+
     // Find district ID from data
     const district = transformApiDataToDistricts.find((d) => d.district === districtName);
+    const targetState = {
+      districtId: district?.id || null,
+      districtName: districtName,
+      cropId: selectedCrop ? selectedCrop.cropId : null,
+      selectionFromOutOfCluster: selectedCrop ? selectedCrop.selectionFromOutOfCluster : null,
+      cropKey: selectedCropKey,
+      cropName: selectedCrop ? selectedCrop.cropName : (cropName !== 'ALL' ? cropName : null),
+      agriculturalYear,
+      filterType,
+      singleMonth,
+      fromMonth,
+      toMonth,
+      startMonth: filterType === 'single' ? singleMonth : fromMonth,
+      endMonth: filterType === 'single' ? singleMonth : toMonth
+    };
+
     if (district) {
       navigate(`/kerala_form5_report/taluk_form5_report/${district.id}`, {
-        state: {
-          districtId: district.id,
-          districtName: districtName,
-          cropName: cropName !== 'ALL' ? cropName : null,
-          agriculturalYear,
-          filterType,
-          singleMonth,
-          fromMonth,
-          toMonth,
-          startMonth: filterType === 'single' ? singleMonth : fromMonth,
-          endMonth: filterType === 'single' ? singleMonth : toMonth
-        }
+        state: targetState
       });
     } else {
       navigate(`/kerala_form5_report/taluk_form5_report/${districtName.toLowerCase()}`, {
-        state: {
-          districtName,
-          cropName: cropName !== 'ALL' ? cropName : null,
-          agriculturalYear,
-          filterType,
-          singleMonth,
-          fromMonth,
-          toMonth,
-          startMonth: filterType === 'single' ? singleMonth : fromMonth,
-          endMonth: filterType === 'single' ? singleMonth : toMonth
-        }
+        state: targetState
       });
     }
   };
 
+  // Role check: Field Data Collector should be redirected directly to Form 5 overview
+  const isFdcUser = useMemo(() => {
+    const tokenRole = AuthService.getrole();
+    const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+    const des = localStorage.getItem('des') || '';
+    return roles.includes('Field Data Collector') || des.includes('Field Data Collector');
+  }, []);
+
+  useEffect(() => {
+    if (isFdcUser) {
+      const zoneId = AuthService.getzone();
+      navigate('/schemes/earas/cce/Form5', {
+        replace: true,
+        state: {
+          officeType: 'FIELD_DATA_COLLECTOR',
+          zoneId,
+          agriculturalYear
+        }
+      });
+    }
+  }, [isFdcUser, agriculturalYear, navigate]);
+
   // Fetch master districts and data when component mounts
   useEffect(() => {
+    if (isFdcUser) return;
     fetchMasterDistricts();
     fetchCropsList();
     fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isFdcUser]);
 
   // Fetch data when month filters change
   useEffect(() => {
+    if (isFdcUser) return;
     if (agriculturalYear) {
       fetchDashboardData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
+  }, [filterType, singleMonth, fromMonth, toMonth, selectedCropKey, agriculturalYear, isFdcUser]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -634,8 +686,27 @@ function KeralaForm5ReportList() {
       value: stats.underReview,
       color: '#b76e00',
       icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />
+    },
+    {
+      label: 'Missing',
+      value: stats.missing,
+      color: '#c2185b',
+      icon: <HelpOutlineIcon sx={{ fontSize: 32, color: '#c2185b', opacity: 0.7 }} />
     }
   ];
+
+  if (isFdcUser) {
+    return (
+      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+        <Grid item sx={{ textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }} color="text.secondary">
+            Redirecting to CCE Progress Status Overview...
+          </Typography>
+        </Grid>
+      </Grid>
+    );
+  }
 
   // Loading state
   if ((loading || masterDistrictsLoading) && !apiData && districtsList.length === 0) {
@@ -673,13 +744,19 @@ function KeralaForm5ReportList() {
                 {filterType === 'range' && fromMonth && toMonth && ` • ${monthLabel(fromMonth)} – ${monthLabel(toMonth)}`}
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${monthLabel(fromMonth)}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
-                {cropName !== 'ALL' && ` • Crop: ${cropName}`}
+                {selectedCropKey !== 'ALL' && (
+                  (() => {
+                    const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+                    const label = found ? found.cropName : cropName;
+                    return ` • Crop: ${label}`;
+                  })()
+                )}
                 {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
                 {districtsWithNoData > 0 && ` • ${districtsWithNoData} districts with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
+          {(selectedCropKey !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
@@ -731,15 +808,23 @@ function KeralaForm5ReportList() {
                 Filters
               </Typography>
             </Stack>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
+            <FormControl size="small" sx={{ minWidth: 240 }}>
               <InputLabel>Crop Name</InputLabel>
-              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
+              <Select value={selectedCropKey} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
-                {cropOptions.map((crop) => (
-                  <MenuItem key={crop.cropId} value={crop.cropName}>
-                    {crop.cropName}
+                {selectedCropKey !== 'ALL' && !cropOptions.some((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey) && (
+                  <MenuItem value={selectedCropKey}>
+                    {cropName || 'Selected Crop'}
                   </MenuItem>
-                ))}
+                )}
+                {cropOptions.map((crop, idx) => {
+                  const key = `${crop.cropId}_${crop.selectionFromOutOfCluster}`;
+                  return (
+                    <MenuItem key={`${key}_${idx}`} value={key}>
+                      {crop.cropName}
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
 
@@ -847,7 +932,7 @@ function KeralaForm5ReportList() {
 
           <Grid container spacing={2}>
             {statCards.map((card) => (
-              <Grid item xs={12} sm={6} md={4} lg key={card.label}>
+              <Grid item xs={12} sm={6} md={3} key={card.label}>
                 <StatCard
                   label={card.label}
                   value={card.value}
@@ -960,6 +1045,7 @@ function KeralaForm5ReportList() {
                       'Not Available',
                       'Not Started',
                       'Under Review',
+                      'Missing',
                       'Actions'
                     ].map((label, idx) => (
                       <TableCell
@@ -975,7 +1061,7 @@ function KeralaForm5ReportList() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -1091,6 +1177,25 @@ function KeralaForm5ReportList() {
                             )}
                           </TableCell>
                           <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.missing > 0 ? (
+                              <Chip
+                                label={row.missing}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: '#c2185b',
+                                  borderColor: alpha('#c2185b', 0.4),
+                                  bgcolor: alpha('#c2185b', 0.1),
+                                  fontWeight: 600
+                                }}
+                              />
+                            ) : (
+                              row.missing
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
                             {row.hasData ? (
                               <Tooltip title="View Details">
                                 <IconButton
@@ -1118,7 +1223,7 @@ function KeralaForm5ReportList() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No districts found</Typography>
                       </TableCell>
                     </TableRow>

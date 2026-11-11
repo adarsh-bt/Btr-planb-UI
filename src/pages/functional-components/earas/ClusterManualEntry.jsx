@@ -1839,8 +1839,8 @@ const ClusterFormUI = () => {
         const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
         if (!rowToRemove) return;
 
-        // NUC validation check
-        if (keyplot.label) {
+        // NUC validation check (only for existing saved rows)
+        if (!rowToRemove.isNew && rowToRemove.b_id && keyplot.label) {
             const nucInfo = getNucInfoForLabel(keyplot.label);
             if (nucInfo.isUsed) {
                 const remainingRows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
@@ -1965,8 +1965,19 @@ const ClusterFormUI = () => {
         return hasValidRow ? 'complete' : 'incomplete';
     };
 
+    const isStatusEditable = (s) => {
+        if (!s || typeof s !== 'string') return true;
+        const normalized = s.trim().toLowerCase().replace(/[\s_]+/g, '');
+        if (normalized === 'completed' || normalized === 'underreview') {
+            return false;
+        }
+        return normalized === 'ongoing' || normalized === 'notstarted';
+    };
+
+    const isStatusOngoing = (s) => isStatusEditable(s);
+
     const isSubmitDisabled = () => {
-        if (hasAnyError || submitting || !isedit) return true;
+        if (hasAnyError || submitting || !isStatusEditable(status)) return true;
 
         // ✅ Check K (Keyplot)
         const kPlot = keyplotsData.find(kp => kp.label === 'K');
@@ -2170,7 +2181,13 @@ const ClusterFormUI = () => {
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                                 <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
                                 {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
-                                <Tooltip title={hasNucError ? "Resolve NUC validation errors before saving" : "Submit"}>
+                                <Tooltip title={
+                                    hasNucError ? "Resolve NUC validation errors before saving" :
+                                        !validateSidePlotLabels().isValid ?
+                                            validateSidePlotLabels().message :
+                                            getMissingLabels().length > 0 ?
+                                                `Add rows to: ${getMissingLabels().join(', ')}` :
+                                                "Submit"}>
                                     <span>
                                         {role === 'Field Data Collector' && (
                                             <Button
@@ -2438,7 +2455,7 @@ const ClusterFormUI = () => {
                     <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                         <Grid container spacing={2} alignItems="center" justifyContent="center">
                             {role === 'Field Data Collector' && (
-                                <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
+                                <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isStatusEditable(status)}>Add CCE crops</Button></Grid>)}
                             <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                             {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                         </Grid>
@@ -2501,7 +2518,7 @@ const ClusterFormUI = () => {
 
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <Typography variant="h6">Side Plot -</Typography>
-                                            <Tooltip title={nucInfo.isUsed ? `This label (${keyplot.label}) is already used in NUC details (${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}). Delete NUC details first to change label.` : ''}>
+                                            <Tooltip title={nucInfo.isUsed ? `This label (${keyplot.label}) is already used in NUC + FFS + COS details (${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}). Delete FFS COS  NUC  details first to change label.` : ''}>
                                                 <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
                                                     <Select
                                                         value={keyplot.label || ''}
@@ -2617,7 +2634,7 @@ const ClusterFormUI = () => {
                                             <Tooltip title={`Used in NUC: ${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}`}>
                                                 <Chip
                                                     icon={<GrassIcon style={{ color: '#fff', fontSize: '1rem' }} />}
-                                                    label={`NUC: ${nucInfo.maxNucArea} cents`}
+                                                    label={`NUC ,FFS , COS: ${nucInfo.maxNucArea} cents`}
                                                     size="small"
                                                     sx={{
                                                         backgroundColor: isAreaBelowNuc ? '#b71c1c' : 'rgba(255, 255, 255, 0.25)',
@@ -2739,7 +2756,7 @@ const ClusterFormUI = () => {
                                                         /></Grid>
                                                         <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onWheel={(e) => e.target.blur()} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                         <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onWheel={(e) => e.target.blur()} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
-                                                        <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
+                                                        <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" disabled={submitting} onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
 
                                                     </>
                                                 ) : (
@@ -2760,6 +2777,7 @@ const ClusterFormUI = () => {
                                                                                 onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
                                                                                 size="small"
                                                                                 color="error"
+                                                                                disabled={submitting}
                                                                             >
                                                                                 <RemoveCircleOutlineIcon />
                                                                             </IconButton>
@@ -2778,7 +2796,7 @@ const ClusterFormUI = () => {
                                     })}
                                     {role === 'Field Data Collector' && (
                                         <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-                                            <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}>Add Row</Button>
+                                            <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isStatusEditable(status)}>Add Row</Button>
                                         </Grid>)}
                                 </Grid>
                             </Box>
@@ -2789,9 +2807,11 @@ const ClusterFormUI = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
                             <Tooltip title={
                                 hasNucError ? "Resolve NUC validation errors before saving" :
-                                getMissingLabels().length > 0 ?
-                                    `Add rows to: ${getMissingLabels().join(', ')}` :
-                                    "Save cluster data"}>
+                                    !validateSidePlotLabels().isValid ?
+                                        validateSidePlotLabels().message :
+                                        getMissingLabels().length > 0 ?
+                                            `Add rows to: ${getMissingLabels().join(', ')}` :
+                                            "Save cluster data"}>
                                 <Button
                                     variant="contained"
                                     size="large"

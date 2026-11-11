@@ -51,6 +51,7 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
@@ -147,6 +148,16 @@ function ZoneForm5Report() {
   const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
   const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
 
+  // Selected crop composite key: "ALL" or `${cropId}_${selectionFromOutOfCluster}`
+  const initialCropKey = useMemo(() => {
+    if (stateData.cropKey) return stateData.cropKey;
+    if (stateData.cropId != null && stateData.selectionFromOutOfCluster !== undefined) {
+      return `${stateData.cropId}_${stateData.selectionFromOutOfCluster}`;
+    }
+    return 'ALL';
+  }, [stateData]);
+
+  const [selectedCropKey, setSelectedCropKey] = useState(initialCropKey);
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
@@ -167,6 +178,40 @@ function ZoneForm5Report() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
+  // Role check: Field Data Collector cannot view Taluk – Zone Wise CCE Progress Report
+  const isFdcUser = useMemo(() => {
+    const tokenRole = AuthService.getrole();
+    const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+    const des = localStorage.getItem('des') || '';
+    return (
+      roles.includes('Field Data Collector') ||
+      des.includes('Field Data Collector') ||
+      stateData.officeType === 'FIELD_DATA_COLLECTOR' ||
+      location.state?.officeType === 'FIELD_DATA_COLLECTOR'
+    );
+  }, [stateData.officeType, location.state]);
+
+  useEffect(() => {
+    if (isFdcUser) {
+      const zoneId = location.state?.zoneId || stateData.zoneId || AuthService.getzone();
+      navigate('/schemes/earas/cce/Form5', {
+        replace: true,
+        state: {
+          ...stateData,
+          officeType: 'FIELD_DATA_COLLECTOR',
+          zoneId,
+          zoneName: location.state?.zoneName || stateData.zoneName || '',
+          talukId: location.state?.talukId || resolvedTalukId.current,
+          talukName: location.state?.talukName || stateData.talukName || '',
+          districtId: location.state?.districtId || stateData.districtId || null,
+          districtName: location.state?.districtName || stateData.districtName || '',
+          agriculturalYear: location.state?.agriculturalYear || agriculturalYear,
+          from: 'zoneForm5Report'
+        }
+      });
+    }
+  }, [isFdcUser]);
+
   useEffect(() => {
     if (resolvedTalukId.current) {
       sessionStorage.setItem(
@@ -176,6 +221,9 @@ function ZoneForm5Report() {
           talukName: stateData.talukName || talukName || '',
           districtId: stateData.districtId || null,
           districtName: stateData.districtName || districtName || '',
+          cropId: stateData.cropId || null,
+          selectionFromOutOfCluster: stateData.selectionFromOutOfCluster ?? null,
+          cropKey: stateData.cropKey || 'ALL',
           cropName: stateData.cropName || 'ALL',
           agriculturalYear: stateData.agriculturalYear || '2025-2026',
           filterType: stateData.filterType || 'single',
@@ -272,26 +320,36 @@ function ZoneForm5Report() {
         params.append('startMonth', start);
         if (toMonth) params.append('endMonth', monthNum(toMonth));
       }
-
       params.append('talukId', talukIdValue);
 
-      // Crop filter — backend now accepts cropId
-      if (cropName !== 'ALL') {
-        const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
-        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+      // Crop filter — pass both cropId and selectionFromOutOfCluster to progress report cce-summary
+      if (selectedCropKey !== 'ALL') {
+        let selectedCrop = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+        if (!selectedCrop && stateData.cropId != null) {
+          selectedCrop = {
+            cropId: stateData.cropId,
+            selectionFromOutOfCluster: stateData.selectionFromOutOfCluster
+          };
+        }
+        if (selectedCrop && selectedCrop.cropId != null) {
+          params.append('cropId', selectedCrop.cropId);
+          params.append(
+            'selectionFromOutOfCluster',
+            Boolean(selectedCrop.selectionFromOutOfCluster === true || selectedCrop.selectionFromOutOfCluster === 'true')
+          );
+        }
       }
 
       url += `?${params.toString()}`;
-
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
+      console.log("url  ", url)
       if (response.data) {
         setApiData(response.data);
         setTotalElements(Array.isArray(response.data.zones) ? response.data.zones.length : 0);
 
-        if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
+        if (selectedCropKey === 'ALL' && Array.isArray(response.data.cropList) && cropOptions.length === 0) {
           setCropOptions(response.data.cropList);
         }
       }
@@ -313,7 +371,24 @@ function ZoneForm5Report() {
         `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
       );
       if (response.data && Array.isArray(response.data)) {
-        setCropOptions(response.data); // { cropId, cropName, ... } objects
+        setCropOptions(response.data); // [{ cropId, cropName, selectionFromOutOfCluster }, ...]
+
+        if (selectedCropKey === 'ALL') {
+          if (stateData.cropId != null && stateData.selectionFromOutOfCluster !== undefined) {
+            const key = `${stateData.cropId}_${stateData.selectionFromOutOfCluster}`;
+            const found = response.data.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === key);
+            if (found) {
+              setSelectedCropKey(key);
+              setCropName(found.cropName);
+            }
+          } else if (stateData.cropName && stateData.cropName !== 'ALL') {
+            const found = response.data.find((c) => c.cropName?.toLowerCase() === stateData.cropName?.toLowerCase());
+            if (found) {
+              setSelectedCropKey(`${found.cropId}_${found.selectionFromOutOfCluster}`);
+              setCropName(found.cropName);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching crops list:', err);
@@ -323,78 +398,111 @@ function ZoneForm5Report() {
   /* ─────────────────────────── effects ─────────────────────────── */
 
   useEffect(() => {
+    if (isFdcUser) return;
     if (resolvedTalukId.current) {
       fetchMasterZones(resolvedTalukId.current);
     }
     fetchCropsList();
-  }, []);
+  }, [agriculturalYear, isFdcUser]);
 
   useEffect(() => {
+    if (isFdcUser) return;
     fetchZoneWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
+  }, [filterType, singleMonth, fromMonth, toMonth, selectedCropKey, agriculturalYear, isFdcUser]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
   const processedData = useMemo(() => {
     const apiZones = Array.isArray(apiData?.zones) ? apiData.zones : [];
 
+    // Map by zoneId (primary) and zoneName (secondary) for robust matching
     const apiDataMap = {};
-    apiZones.forEach(z => {
-      const key = z.zoneName?.toLowerCase() || '';
-      apiDataMap[key] = z;
+    const apiDataIdMap = {};
+    apiZones.forEach((z) => {
+      const nameKey = (z.zoneName || '').toLowerCase().trim();
+      if (nameKey) apiDataMap[nameKey] = z;
+      const idKey = z.zoneId ?? z.id;
+      if (idKey != null) apiDataIdMap[String(idKey)] = z;
     });
 
     let mergedZones = [];
     if (zonesList && zonesList.length > 0) {
       mergedZones = zonesList.map((zone) => {
         const zoneName = zone.zoneName || zone.zoneNameEn || zone.name || '';
-        const apiData = apiDataMap[zoneName.toLowerCase()] || {};
+        const zId = zone.zoneId ?? zone.id;
+        const zApi = (zId != null ? apiDataIdMap[String(zId)] : null) || apiDataMap[zoneName.toLowerCase().trim()] || {};
 
-        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
-          (apiData.selectedCce || 0) > 0 ||
-          (apiData.completed || 0) > 0 ||
-          (apiData.ongoing || 0) > 0 ||
-          (apiData.notAvailable || 0) > 0 ||
-          (apiData.notStarted || 0) > 0 ||
-          (apiData.underReview || 0) > 0;
+        const allowtedCce = zApi.allowedCCECrops ?? zApi.allowtedCce ?? zApi.allotedCce ?? zApi.totalCCECrops ?? 0;
+        const selectedCce = zApi.selectedCce ?? zApi.selectedCCE ?? zApi.selected ?? 0;
+        const completed = zApi.completed ?? zApi.completedCce ?? 0;
+        const ongoing = zApi.ongoing ?? zApi.ongoingCce ?? 0;
+        const notAvailable = zApi.notAvailable ?? zApi.notAvailableCce ?? 0;
+        const notStarted = zApi.notStarted ?? zApi.notStartedCce ?? 0;
+        const underReview = zApi.underReview ?? zApi.underReviewCce ?? 0;
+        const missing = zApi.missing ?? zApi.missingCrops ?? zApi.missingCce ?? 0;
+
+        const hasData =
+          allowtedCce > 0 ||
+          selectedCce > 0 ||
+          completed > 0 ||
+          ongoing > 0 ||
+          notAvailable > 0 ||
+          notStarted > 0 ||
+          underReview > 0 ||
+          missing > 0;
 
         return {
-          zoneId: zone.zoneId || zone.id || apiData.zoneId || `zone_${Math.random()}`,
-          zoneName: zoneName || 'Unknown Zone',
-          blockId: zone.blockId || apiData.blockId || null,
-          blockName: zone.blockName || apiData.blockName || 'Unassigned',
-          allowtedCce: apiData.allowedCCECrops || 0,
-          selectedCce: apiData.selectedCce || 0,
-          completed: apiData.completed || 0,
-          ongoing: apiData.ongoing || 0,
-          notAvailable: apiData.notAvailable || 0,
-          notStarted: apiData.notStarted || 0,
-          underReview: apiData.underReview || 0,
-          hasData: hasData
+          zoneId: zId || zApi.zoneId || `zone_${Math.random()}`,
+          zoneName: zoneName || zApi.zoneName || 'Unknown Zone',
+          blockId: zone.blockId || zApi.blockId || null,
+          blockName: zone.blockName || zApi.blockName || 'Unassigned',
+          allowtedCce,
+          selectedCce,
+          completed,
+          ongoing,
+          notAvailable,
+          notStarted,
+          underReview,
+          missing,
+          hasData
         };
       });
     } else {
-      mergedZones = apiZones.map((z) => ({
-        zoneId: z.zoneId,
-        zoneName: z.zoneName,
-        blockId: z.blockId,
-        blockName: z.blockName || 'Unassigned',
-        allowtedCce: z.allowedCCECrops || 0,
-        selectedCce: z.selectedCce || 0,
-        completed: z.completed || 0,
-        ongoing: z.ongoing || 0,
-        notAvailable: z.notAvailable || 0,
-        notStarted: z.notStarted || 0,
-        underReview: z.underReview || 0,
-        hasData: (z.allowedCCECrops || 0) > 0 ||
-          (z.selectedCce || 0) > 0 ||
-          (z.completed || 0) > 0 ||
-          (z.ongoing || 0) > 0 ||
-          (z.notAvailable || 0) > 0 ||
-          (z.notStarted || 0) > 0 ||
-          (z.underReview || 0) > 0
-      }));
+      mergedZones = apiZones.map((z) => {
+        const allowtedCce = z.allowedCCECrops ?? z.allowtedCce ?? z.allotedCce ?? z.totalCCECrops ?? 0;
+        const selectedCce = z.selectedCce ?? z.selectedCCE ?? z.selected ?? 0;
+        const completed = z.completed ?? z.completedCce ?? 0;
+        const ongoing = z.ongoing ?? z.ongoingCce ?? 0;
+        const notAvailable = z.notAvailable ?? z.notAvailableCce ?? 0;
+        const notStarted = z.notStarted ?? z.notStartedCce ?? 0;
+        const underReview = z.underReview ?? z.underReviewCce ?? 0;
+        const missing = z.missing ?? z.missingCrops ?? z.missingCce ?? 0;
+
+        return {
+          zoneId: z.zoneId ?? z.id,
+          zoneName: z.zoneName || 'Unknown Zone',
+          blockId: z.blockId,
+          blockName: z.blockName || 'Unassigned',
+          allowtedCce,
+          selectedCce,
+          completed,
+          ongoing,
+          notAvailable,
+          notStarted,
+          underReview,
+          missing,
+          hasData:
+            allowtedCce > 0 ||
+            selectedCce > 0 ||
+            completed > 0 ||
+            ongoing > 0 ||
+            notAvailable > 0 ||
+            notStarted > 0 ||
+            underReview > 0 ||
+            missing > 0
+        };
+      });
     }
 
     // Group by block - only zones, no subtotals
@@ -414,6 +522,7 @@ function ZoneForm5Report() {
         notAvailable: z.notAvailable,
         notStarted: z.notStarted,
         underReview: z.underReview,
+        missing: z.missing,
         hasData: z.hasData
       };
 
@@ -455,7 +564,7 @@ function ZoneForm5Report() {
         isUnassigned: true,
         zones: unassignedZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
       });
-    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null)
+    const targetZoneId = location.state?.zoneId || null;
     if (targetZoneId) {
       const filteredBlocks = [];
       blocks.forEach((block) => {
@@ -489,6 +598,7 @@ function ZoneForm5Report() {
     let notAvailableSum = 0;
     let notStartedSum = 0;
     let underReviewSum = 0;
+    let missingSum = 0;
 
     processedData.forEach((block) => {
       block.zones.forEach((z) => {
@@ -499,17 +609,28 @@ function ZoneForm5Report() {
         notAvailableSum += (z.notAvailable || 0);
         notStartedSum += (z.notStarted || 0);
         underReviewSum += (z.underReview || 0);
+        missingSum += (z.missing || 0);
       });
     });
 
+    const topAllowted = apiData?.allowedCCECrops ?? apiData?.allowtedCce ?? apiData?.allotedCce ?? apiData?.totalCCECrops ?? 0;
+    const topSelected = apiData?.selectedCce ?? apiData?.selectedCCE ?? 0;
+    const topCompleted = apiData?.completed ?? apiData?.completedCce ?? 0;
+    const topOngoing = apiData?.ongoing ?? apiData?.ongoingCce ?? 0;
+    const topNotAvailable = apiData?.notAvailable ?? apiData?.notAvailableCce ?? 0;
+    const topNotStarted = apiData?.notStarted ?? apiData?.notStartedCce ?? 0;
+    const topUnderReview = apiData?.underReview ?? apiData?.underReviewCce ?? 0;
+    const topMissing = apiData?.missing ?? apiData?.missingCrops ?? apiData?.missingCce ?? 0;
+
     return {
-      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
-      selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
-      completed: completedSum,
-      ongoing: ongoingSum,
-      notAvailable: notAvailableSum,
-      notStarted: notStartedSum,
-      underReview: underReviewSum
+      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : topAllowted,
+      selectedCce: selectedCceSum > 0 ? selectedCceSum : topSelected,
+      completed: completedSum > 0 ? completedSum : topCompleted,
+      ongoing: ongoingSum > 0 ? ongoingSum : topOngoing,
+      notAvailable: notAvailableSum > 0 ? notAvailableSum : topNotAvailable,
+      notStarted: notStartedSum > 0 ? notStartedSum : topNotStarted,
+      underReview: underReviewSum > 0 ? underReviewSum : topUnderReview,
+      missing: missingSum > 0 ? missingSum : topMissing
     };
   }, [apiData, processedData]);
 
@@ -517,7 +638,7 @@ function ZoneForm5Report() {
   const flattenedTableData = useMemo(() => {
     const result = [];
     processedData.forEach((block) => {
-      let bAllowtedCce = 0, bSelectedCce = 0, bCompleted = 0, bOngoing = 0, bNotAvailable = 0, bNotStarted = 0, bUnderReview = 0;
+      let bAllowtedCce = 0, bSelectedCce = 0, bCompleted = 0, bOngoing = 0, bNotAvailable = 0, bNotStarted = 0, bUnderReview = 0, bMissing = 0;
 
       block.zones.forEach((zone) => {
         bAllowtedCce += zone.allowtedCce;
@@ -527,6 +648,7 @@ function ZoneForm5Report() {
         bNotAvailable += zone.notAvailable;
         bNotStarted += zone.notStarted;
         bUnderReview += zone.underReview;
+        bMissing += (zone.missing || 0);
 
         result.push({
           type: 'zone',
@@ -541,6 +663,7 @@ function ZoneForm5Report() {
           notAvailable: zone.notAvailable,
           notStarted: zone.notStarted,
           underReview: zone.underReview,
+          missing: zone.missing,
           zoneId: zone.zoneId,
           hasData: zone.hasData,
           isUnassigned: block.isUnassigned || false,
@@ -562,10 +685,11 @@ function ZoneForm5Report() {
         notAvailable: bNotAvailable,
         notStarted: bNotStarted,
         underReview: bUnderReview,
+        missing: bMissing,
         isSubtotal: true,
         hasData:
           bAllowtedCce > 0 || bSelectedCce > 0 || bCompleted > 0 ||
-          bOngoing > 0 || bNotAvailable > 0 || bNotStarted > 0 || bUnderReview > 0
+          bOngoing > 0 || bNotAvailable > 0 || bNotStarted > 0 || bUnderReview > 0 || bMissing > 0
       });
     });
     return result;
@@ -588,7 +712,16 @@ function ZoneForm5Report() {
   /* ─────────────────────────── handlers ─────────────────────────── */
 
   const handleCropNameChange = (event) => {
-    setCropName(event.target.value);
+    const val = event.target.value;
+    setSelectedCropKey(val);
+    if (val === 'ALL') {
+      setCropName('ALL');
+    } else {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === val);
+      if (found) {
+        setCropName(found.cropName);
+      }
+    }
     setPage(0);
   };
 
@@ -608,6 +741,7 @@ function ZoneForm5Report() {
   };
 
   const handleClearFilters = () => {
+    setSelectedCropKey('ALL');
     setCropName('ALL');
     setFilterType('single');
     setSingleMonth(defaultSingleMonth);
@@ -626,7 +760,11 @@ function ZoneForm5Report() {
   const generateExcelFileName = () => {
     const parts = ['CCE_Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
 
-    if (cropName !== 'ALL') parts.push(cropName.replace(/\s+/g, '_'));
+    if (selectedCropKey !== 'ALL') {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+      const cLabel = found ? found.cropName : cropName;
+      if (cLabel && cLabel !== 'ALL') parts.push(cLabel.replace(/\s+/g, '_'));
+    }
 
     if (filterType === 'single' && singleMonth) {
       parts.push(monthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -657,7 +795,8 @@ function ZoneForm5Report() {
       Ongoing: row.hasData ? row.ongoing : 'NA',
       'Not Available': row.hasData ? row.notAvailable : 'NA',
       'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
+      'Under Review': row.hasData ? row.underReview : 'NA',
+      'Missing': row.hasData ? row.missing : 'NA'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
@@ -665,7 +804,7 @@ function ZoneForm5Report() {
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
       { wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -677,6 +816,10 @@ function ZoneForm5Report() {
   const handleViewZoneDetails = (zoneName, clickedZoneId, hasData) => {
     if (!hasData) return;
 
+    const selectedCrop = selectedCropKey !== 'ALL'
+      ? cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey)
+      : null;
+
     navigate('/schemes/earas/cce/Form5', {
       state: {
         zoneId: clickedZoneId,
@@ -685,7 +828,10 @@ function ZoneForm5Report() {
         talukName: stateData.talukName,
         districtId: stateData.districtId,
         districtName: stateData.districtName,
-        cropName: cropName !== 'ALL' ? cropName : null,
+        cropId: selectedCrop ? selectedCrop.cropId : (stateData.cropId || null),
+        selectionFromOutOfCluster: selectedCrop ? selectedCrop.selectionFromOutOfCluster : (stateData.selectionFromOutOfCluster ?? null),
+        cropKey: selectedCropKey,
+        cropName: selectedCrop ? selectedCrop.cropName : (cropName !== 'ALL' ? cropName : null),
         agriculturalYear,
         filterType,
         singleMonth,
@@ -736,6 +882,19 @@ function ZoneForm5Report() {
         .join(' ')
       : 'Taluk');
 
+  if (isFdcUser) {
+    return (
+      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+        <Grid item sx={{ textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }} color="text.secondary">
+            Redirecting to CCE Progress Status Overview...
+          </Typography>
+        </Grid>
+      </Grid>
+    );
+  }
+
   if ((loading || masterZonesLoading) && !apiData && zonesList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
@@ -770,13 +929,19 @@ function ZoneForm5Report() {
                 {filterType === 'range' && fromMonth && toMonth && ` • ${monthLabel(fromMonth)} – ${monthLabel(toMonth)}`}
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${monthLabel(fromMonth)}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
-                {cropName !== 'ALL' && ` • Crop: ${cropName}`}
+                {selectedCropKey !== 'ALL' && (
+                  (() => {
+                    const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+                    const label = found ? found.cropName : cropName;
+                    return ` • Crop: ${label}`;
+                  })()
+                )}
                 {apiData && ` • Total Zones: ${totalElements}`}
                 {zonesWithNoData > 0 && ` • ${zonesWithNoData} zones with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
+          {(selectedCropKey !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
@@ -823,15 +988,23 @@ function ZoneForm5Report() {
                 Filters
               </Typography>
             </Stack>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
+            <FormControl size="small" sx={{ minWidth: 240 }}>
               <InputLabel>Crop Name</InputLabel>
-              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
+              <Select value={selectedCropKey} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
-                {cropOptions.map((crop) => (
-                  <MenuItem key={crop.cropId} value={crop.cropName}>
-                    {crop.cropName}
+                {selectedCropKey !== 'ALL' && !cropOptions.some((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey) && (
+                  <MenuItem value={selectedCropKey}>
+                    {cropName || 'Selected Crop'}
                   </MenuItem>
-                ))}
+                )}
+                {cropOptions.map((crop, idx) => {
+                  const key = `${crop.cropId}_${crop.selectionFromOutOfCluster}`;
+                  return (
+                    <MenuItem key={`${key}_${idx}`} value={key}>
+                      {crop.cropName}
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
 
@@ -935,9 +1108,10 @@ function ZoneForm5Report() {
               { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
               { label: 'Not Available', value: stats.notAvailable, color: '#c62828', icon: <CancelIcon sx={{ fontSize: 32, color: '#c62828', opacity: 0.7 }} /> },
               { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
+              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> },
+              { label: 'Missing', value: stats.missing, color: '#c2185b', icon: <HelpOutlineIcon sx={{ fontSize: 32, color: '#c2185b', opacity: 0.7 }} /> }
             ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={4} lg key={label}>
+              <Grid item xs={12} sm={6} md={3} key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
             ))}
@@ -1048,6 +1222,7 @@ function ZoneForm5Report() {
                       'Not Available',
                       'Not Started',
                       'Under Review',
+                      'Missing',
                       'Actions'
                     ].map((label, idx) => (
                       <TableCell
@@ -1072,7 +1247,7 @@ function ZoneForm5Report() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={12} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -1260,6 +1435,26 @@ function ZoneForm5Report() {
                             </TableCell>
 
                             <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.missing > 0 ? (
+                                <Chip
+                                  label={row.missing}
+                                  size="small"
+                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                  sx={{
+                                    fontWeight: isSubtotalRow ? 700 : 500,
+                                    bgcolor: isSubtotalRow ? alpha('#c2185b', 0.15) : alpha('#c2185b', 0.1),
+                                    color: '#c2185b',
+                                    borderColor: alpha('#c2185b', 0.4)
+                                  }}
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.missing}</Typography>
+                              )}
+                            </TableCell>
+
+                            <TableCell align="center" sx={{ border: 'none' }}>
                               {!isSubtotalRow && (
                                 row.hasData ? (
                                   <Tooltip title="View CCE Details">
@@ -1287,7 +1482,7 @@ function ZoneForm5Report() {
                     })()
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={12} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>

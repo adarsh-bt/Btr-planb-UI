@@ -49,6 +49,7 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
@@ -172,9 +173,16 @@ function TalukForm5Report() {
   const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
   const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
 
-  /* ── filter state - Crop Name (UI only) + months ── */
-  // Backend does not accept cropName yet, so the param is not sent —
-  // see the TODO in fetchTalukWiseData to enable it later.
+  /* ── filter state - Crop Name + months ── */
+  const initialCropKey = useMemo(() => {
+    if (stateData.cropKey) return stateData.cropKey;
+    if (stateData.cropId != null && stateData.selectionFromOutOfCluster !== undefined) {
+      return `${stateData.cropId}_${stateData.selectionFromOutOfCluster}`;
+    }
+    return 'ALL';
+  }, [stateData]);
+
+  const [selectedCropKey, setSelectedCropKey] = useState(initialCropKey);
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
@@ -196,6 +204,40 @@ function TalukForm5Report() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
+  // Role check: Field Data Collector cannot view Taluk – Zone Wise CCE Progress Report
+  const isFdcUser = useMemo(() => {
+    const tokenRole = AuthService.getrole();
+    const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+    const des = localStorage.getItem('des') || '';
+    return (
+      roles.includes('Field Data Collector') ||
+      des.includes('Field Data Collector') ||
+      stateData.officeType === 'FIELD_DATA_COLLECTOR' ||
+      location.state?.officeType === 'FIELD_DATA_COLLECTOR'
+    );
+  }, [stateData.officeType, location.state]);
+
+  useEffect(() => {
+    if (isFdcUser) {
+      const zoneId = location.state?.zoneId || stateData.zoneId || AuthService.getzone();
+      navigate('/schemes/earas/cce/Form5', {
+        replace: true,
+        state: {
+          ...stateData,
+          officeType: 'FIELD_DATA_COLLECTOR',
+          zoneId,
+          zoneName: location.state?.zoneName || stateData.zoneName || '',
+          talukId: location.state?.talukId || stateData.talukId || null,
+          talukName: location.state?.talukName || stateData.talukName || '',
+          districtId: location.state?.districtId || resolvedDistrictId.current || null,
+          districtName: location.state?.districtName || stateData.districtName || '',
+          agriculturalYear: location.state?.agriculturalYear || agriculturalYear,
+          from: 'talukForm5Report'
+        }
+      });
+    }
+  }, [isFdcUser]);
+
   /* ── persist district context to sessionStorage so breadcrumb back works ── */
   useEffect(() => {
     if (resolvedDistrictId.current) {
@@ -204,6 +246,9 @@ function TalukForm5Report() {
         JSON.stringify({
           districtId: resolvedDistrictId.current,
           districtName: stateData.districtName || '',
+          cropId: stateData.cropId || null,
+          selectionFromOutOfCluster: stateData.selectionFromOutOfCluster ?? null,
+          cropKey: stateData.cropKey || 'ALL',
           cropName: stateData.cropName || 'ALL',
           agriculturalYear: stateData.agriculturalYear || '2025-2026',
           filterType: stateData.filterType || 'single',
@@ -312,15 +357,26 @@ function TalukForm5Report() {
       // District drill-down → backend returns the taluks for this district.
       params.append('districtId', districtIdValue);
 
-      // Crop filter — backend now accepts cropId
-      if (cropName !== 'ALL') {
-        const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
-        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+      // Crop filter — pass cropId and selectionFromOutOfCluster
+      if (selectedCropKey !== 'ALL') {
+        let selectedCrop = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+        if (!selectedCrop && stateData.cropId != null) {
+          selectedCrop = {
+            cropId: stateData.cropId,
+            selectionFromOutOfCluster: stateData.selectionFromOutOfCluster
+          };
+        }
+        if (selectedCrop && selectedCrop.cropId != null) {
+          params.append('cropId', selectedCrop.cropId);
+          params.append(
+            'selectionFromOutOfCluster',
+            Boolean(selectedCrop.selectionFromOutOfCluster === true || selectedCrop.selectionFromOutOfCluster === 'true')
+          );
+        }
       }
 
       url += `?${params.toString()}`;
-
-
+      console.log("taluk list ", url)
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -328,9 +384,7 @@ function TalukForm5Report() {
       if (response.data) {
         setApiData(response.data);
 
-        // Populate the crop dropdown if/when the endpoint returns a cropList.
-        // (Currently not returned, so the dropdown stays at ALL.)
-        if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
+        if (selectedCropKey === 'ALL' && Array.isArray(response.data.cropList) && cropOptions.length === 0) {
           setCropOptions(response.data.cropList);
         }
       }
@@ -352,7 +406,24 @@ function TalukForm5Report() {
         `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
       );
       if (response.data && Array.isArray(response.data)) {
-        setCropOptions(response.data); // { cropId, cropName, ... } objects
+        setCropOptions(response.data); // [{ cropId, cropName, selectionFromOutOfCluster }, ...]
+
+        if (selectedCropKey === 'ALL') {
+          if (stateData.cropId != null && stateData.selectionFromOutOfCluster !== undefined) {
+            const key = `${stateData.cropId}_${stateData.selectionFromOutOfCluster}`;
+            const found = response.data.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === key);
+            if (found) {
+              setSelectedCropKey(key);
+              setCropName(found.cropName);
+            }
+          } else if (stateData.cropName && stateData.cropName !== 'ALL') {
+            const found = response.data.find((c) => c.cropName?.toLowerCase() === stateData.cropName?.toLowerCase());
+            if (found) {
+              setSelectedCropKey(`${found.cropId}_${found.selectionFromOutOfCluster}`);
+              setCropName(found.cropName);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching crops list:', err);
@@ -363,17 +434,19 @@ function TalukForm5Report() {
 
   // Fetch master taluks on mount
   useEffect(() => {
+    if (isFdcUser) return;
     if (resolvedDistrictId.current) {
       fetchMasterTaluks(resolvedDistrictId.current);
     }
     fetchCropsList();
-  }, []);
+  }, [agriculturalYear, isFdcUser]);
 
   // Fetch data when month filters change.
   useEffect(() => {
+    if (isFdcUser) return;
     fetchTalukWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
+  }, [filterType, singleMonth, fromMonth, toMonth, selectedCropKey, agriculturalYear, isFdcUser]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -394,6 +467,8 @@ function TalukForm5Report() {
         const talukName = taluk.talukName || taluk.talukNameEn || taluk.name || '';
         const apiData = apiDataMap[talukName.toLowerCase()] || {};
 
+        const missing = apiData.missing ?? apiData.missingCrops ?? apiData.missingCce ?? 0;
+
         // Check if this taluk has any data
         const hasData = (apiData.allowedCCECrops || 0) > 0 ||
           (apiData.selectedCce || 0) > 0 ||
@@ -401,7 +476,8 @@ function TalukForm5Report() {
           (apiData.ongoing || 0) > 0 ||
           (apiData.notAvailable || 0) > 0 ||
           (apiData.notStarted || 0) > 0 ||
-          (apiData.underReview || 0) > 0;
+          (apiData.underReview || 0) > 0 ||
+          missing > 0;
 
         return {
           id: taluk.id || taluk.talukId || apiData.talukId || `taluk_${Math.random()}`,
@@ -413,6 +489,7 @@ function TalukForm5Report() {
           notAvailable: apiData.notAvailable || 0,
           notStarted: apiData.notStarted || 0,
           underReview: apiData.underReview || 0,
+          missing: missing,
           hasData: hasData
         };
       });
@@ -421,24 +498,29 @@ function TalukForm5Report() {
       return merged;
     }
 
-    return apiTaluks.map((t) => ({
-      id: t.talukId || `taluk_${Math.random()}`,
-      taluk: t.talukName || 'Unknown Taluk',
-      allowtedCce: t.allowedCCECrops || 0,
-      selectedCce: t.selectedCce || 0,
-      completed: t.completed || 0,
-      ongoing: t.ongoing || 0,
-      notAvailable: t.notAvailable || 0,
-      notStarted: t.notStarted || 0,
-      underReview: t.underReview || 0,
-      hasData: (t.allowedCCECrops || 0) > 0 ||
-        (t.selectedCce || 0) > 0 ||
-        (t.completed || 0) > 0 ||
-        (t.ongoing || 0) > 0 ||
-        (t.notAvailable || 0) > 0 ||
-        (t.notStarted || 0) > 0 ||
-        (t.underReview || 0) > 0
-    }));
+    return apiTaluks.map((t) => {
+      const missing = t.missing ?? t.missingCrops ?? t.missingCce ?? 0;
+      return {
+        id: t.talukId || `taluk_${Math.random()}`,
+        taluk: t.talukName || 'Unknown Taluk',
+        allowtedCce: t.allowedCCECrops || 0,
+        selectedCce: t.selectedCce || 0,
+        completed: t.completed || 0,
+        ongoing: t.ongoing || 0,
+        notAvailable: t.notAvailable || 0,
+        notStarted: t.notStarted || 0,
+        underReview: t.underReview || 0,
+        missing: missing,
+        hasData: (t.allowedCCECrops || 0) > 0 ||
+          (t.selectedCce || 0) > 0 ||
+          (t.completed || 0) > 0 ||
+          (t.ongoing || 0) > 0 ||
+          (t.notAvailable || 0) > 0 ||
+          (t.notStarted || 0) > 0 ||
+          (t.underReview || 0) > 0 ||
+          missing > 0
+      };
+    });
   }, [apiData, taluksList]);
 
   // Count taluks with no data
@@ -455,6 +537,9 @@ function TalukForm5Report() {
     const notAvailableSum = talukData.reduce((sum, t) => sum + (t.notAvailable || 0), 0);
     const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
     const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
+    const missingSum = talukData.reduce((sum, t) => sum + (t.missing || 0), 0);
+
+    const topMissing = apiData?.missing ?? apiData?.missingCrops ?? apiData?.missingCce ?? 0;
 
     return {
       allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
@@ -463,7 +548,8 @@ function TalukForm5Report() {
       ongoing: ongoingSum,
       notAvailable: notAvailableSum,
       notStarted: notStartedSum,
-      underReview: underReviewSum
+      underReview: underReviewSum,
+      missing: missingSum > 0 ? missingSum : topMissing
     };
   }, [apiData, talukData]);
 
@@ -480,7 +566,16 @@ function TalukForm5Report() {
   /* ─────────────────────────── handlers ─────────────────────────── */
 
   const handleCropNameChange = (event) => {
-    setCropName(event.target.value);
+    const val = event.target.value;
+    setSelectedCropKey(val);
+    if (val === 'ALL') {
+      setCropName('ALL');
+    } else {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === val);
+      if (found) {
+        setCropName(found.cropName);
+      }
+    }
     setPage(0);
   };
 
@@ -501,6 +596,7 @@ function TalukForm5Report() {
   };
 
   const handleClearFilters = () => {
+    setSelectedCropKey('ALL');
     setCropName('ALL');
     setFilterType('single');
     setSingleMonth(defaultSingleMonth);
@@ -519,7 +615,11 @@ function TalukForm5Report() {
   const generateExcelFileName = () => {
     const parts = ['CCE_Taluk_Report', displayDistrictName.replace(/\s+/g, '_')];
 
-    if (cropName !== 'ALL') parts.push(cropName.replace(/\s+/g, '_'));
+    if (selectedCropKey !== 'ALL') {
+      const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+      const cLabel = found ? found.cropName : cropName;
+      if (cLabel && cLabel !== 'ALL') parts.push(cLabel.replace(/\s+/g, '_'));
+    }
 
     if (filterType === 'single' && singleMonth) {
       parts.push(monthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -549,7 +649,8 @@ function TalukForm5Report() {
       Ongoing: row.hasData ? row.ongoing : 'NA',
       'Not Available': row.hasData ? row.notAvailable : 'NA',
       'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
+      'Under Review': row.hasData ? row.underReview : 'NA',
+      Missing: row.hasData ? row.missing : 'NA'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
@@ -557,7 +658,7 @@ function TalukForm5Report() {
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
       { wch: 5 }, { wch: 25 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -572,6 +673,9 @@ function TalukForm5Report() {
 
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
     const districtName = stateData.districtName || 'district';
+    const selectedCrop = selectedCropKey !== 'ALL'
+      ? cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey)
+      : null;
 
     navigate(
       `/kerala_form5_report/taluk_form5_report/zone_form5_report/${districtName}/${formattedTalukName}-${talukId}`,
@@ -581,7 +685,10 @@ function TalukForm5Report() {
           talukName,
           districtId: resolvedDistrictId.current,
           districtName: stateData.districtName,
-          cropName: cropName !== 'ALL' ? cropName : null,
+          cropId: selectedCrop ? selectedCrop.cropId : (stateData.cropId || null),
+          selectionFromOutOfCluster: selectedCrop ? selectedCrop.selectionFromOutOfCluster : (stateData.selectionFromOutOfCluster ?? null),
+          cropKey: selectedCropKey,
+          cropName: selectedCrop ? selectedCrop.cropName : (cropName !== 'ALL' ? cropName : null),
           agriculturalYear,
           filterType,
           singleMonth,
@@ -628,6 +735,17 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── render ─────────────────────────── */
 
+  if (isFdcUser) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 2 }}>
+        <CircularProgress />
+        <Typography variant="body2" color="text.secondary">
+          Redirecting to CCE Progress Status Overview...
+        </Typography>
+      </Box>
+    );
+  }
+
   if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
@@ -663,13 +781,19 @@ function TalukForm5Report() {
                 {filterType === 'range' && fromMonth && toMonth && ` • ${monthLabel(fromMonth)} – ${monthLabel(toMonth)}`}
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${monthLabel(fromMonth)}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
-                {cropName !== 'ALL' && ` • Crop: ${cropName}`}
+                {selectedCropKey !== 'ALL' && (
+                  (() => {
+                    const found = cropOptions.find((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey);
+                    const label = found ? found.cropName : cropName;
+                    return ` • Crop: ${label}`;
+                  })()
+                )}
                 {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
                 {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
+          {(selectedCropKey !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
@@ -719,15 +843,23 @@ function TalukForm5Report() {
                 Filters
               </Typography>
             </Stack>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
+            <FormControl size="small" sx={{ minWidth: 240 }}>
               <InputLabel>Crop Name</InputLabel>
-              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
+              <Select value={selectedCropKey} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
-                {cropOptions.map((crop) => (
-                  <MenuItem key={crop.cropId} value={crop.cropName}>
-                    {crop.cropName}
+                {selectedCropKey !== 'ALL' && !cropOptions.some((c) => `${c.cropId}_${c.selectionFromOutOfCluster}` === selectedCropKey) && (
+                  <MenuItem value={selectedCropKey}>
+                    {cropName || 'Selected Crop'}
                   </MenuItem>
-                ))}
+                )}
+                {cropOptions.map((crop, idx) => {
+                  const key = `${crop.cropId}_${crop.selectionFromOutOfCluster}`;
+                  return (
+                    <MenuItem key={`${key}_${idx}`} value={key}>
+                      {crop.cropName}
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
 
@@ -840,9 +972,10 @@ function TalukForm5Report() {
               { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
               { label: 'Not Available', value: stats.notAvailable, color: '#c62828', icon: <CancelIcon sx={{ fontSize: 32, color: '#c62828', opacity: 0.7 }} /> },
               { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
+              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> },
+              { label: 'Missing', value: stats.missing, color: '#c2185b', icon: <HelpOutlineIcon sx={{ fontSize: 32, color: '#c2185b', opacity: 0.7 }} /> }
             ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={4} lg key={label}>
+              <Grid item xs={12} sm={6} md={3} key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
             ))}
@@ -953,6 +1086,7 @@ function TalukForm5Report() {
                       'Not Available',
                       'Not Started',
                       'Under Review',
+                      'Missing',
                       'Actions'
                     ].map((label, idx) => (
                       <TableCell
@@ -968,7 +1102,7 @@ function TalukForm5Report() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -1084,6 +1218,25 @@ function TalukForm5Report() {
                             )}
                           </TableCell>
                           <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.missing > 0 ? (
+                              <Chip
+                                label={row.missing}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: '#c2185b',
+                                  borderColor: alpha('#c2185b', 0.4),
+                                  bgcolor: alpha('#c2185b', 0.1),
+                                  fontWeight: 600
+                                }}
+                              />
+                            ) : (
+                              row.missing
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
                             {row.hasData ? (
                               <Tooltip title="View Zone Details">
                                 <IconButton
@@ -1111,7 +1264,7 @@ function TalukForm5Report() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>

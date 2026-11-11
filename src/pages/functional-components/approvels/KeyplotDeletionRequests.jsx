@@ -32,7 +32,13 @@ import {
   TablePagination,
   Snackbar,
   Stack,
-  Divider
+  Divider,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Badge
 } from '@mui/material';
 import {
   Search,
@@ -55,7 +61,9 @@ import {
   FactCheck,
   DirectionsCar,
   Agriculture,
-  Layers
+  Layers,
+  ExpandMore,
+  WaterDrop
 } from '@mui/icons-material';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
@@ -89,6 +97,12 @@ function KeyplotDeletionRequests() {
   const [impactPreview, setImpactPreview] = useState(null);
   const [impactLoading, setImpactLoading] = useState(false);
   const [impactError, setImpactError] = useState(null);
+
+  // Live cluster log data (NUC, Crops, Land Utilization, etc.)
+  const [clusterLog, setClusterLog] = useState(null);
+  const [clusterLogLoading, setClusterLogLoading] = useState(false);
+  const [clusterLogError, setClusterLogError] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Server-side pagination
   const [page, setPage] = useState(0);
@@ -210,6 +224,55 @@ function KeyplotDeletionRequests() {
       severity: 'info'
     });
   };
+
+  const cleanCropName = (name) => {
+    if (!name) return '—';
+    return name.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const getSeasonName = (seasonId) => {
+    if (seasonId === 1 || seasonId === '1') return 'Autumn (Season 1)';
+    if (seasonId === 2 || seasonId === '2') return 'Winter (Season 2)';
+    if (seasonId === 3 || seasonId === '3') return 'Summer (Season 3)';
+    return seasonId ? `Season ${seasonId}` : 'N/A';
+  };
+
+  const getClusterId = (req, preview = null) => {
+    return (
+      req?.clusterId ||
+      req?.cluster_id ||
+      req?.impactSnapshot?.clusterId ||
+      req?.impactSnapshot?.cluster_id ||
+      preview?.clusterId ||
+      preview?.cluster_id ||
+      null
+    );
+  };
+
+  const totalCropArea = useMemo(() => {
+    if (!clusterLog?.cropDetails || !Array.isArray(clusterLog.cropDetails)) return 0;
+    return clusterLog.cropDetails.reduce((sum, item) => sum + (Number(item.cropArea) || 0), 0);
+  }, [clusterLog]);
+
+  const totalNucSummary = useMemo(() => {
+    if (!clusterLog?.nucDetails || !Array.isArray(clusterLog.nucDetails)) {
+      return { nucArea: 0, ffsArea: 0, cosArea: 0, totalArea: 0 };
+    }
+    let nucArea = 0;
+    let ffsArea = 0;
+    let cosArea = 0;
+    clusterLog.nucDetails.forEach((n) => {
+      nucArea += Number(n.nucArea) || 0;
+      ffsArea += Number(n.ffsArea) || 0;
+      cosArea += Number(n.cosArea) || 0;
+    });
+    return {
+      nucArea,
+      ffsArea,
+      cosArea,
+      totalArea: nucArea + ffsArea + cosArea
+    };
+  }, [clusterLog]);
 
   // ------------------------------------------------------------ filter options
   const taluks = useMemo(
@@ -335,7 +398,85 @@ function KeyplotDeletionRequests() {
   }, [requests, totalElements]);
 
   // ------------------------------------------------------------------ handlers
-  const fetchImpactPreview = async (requestId) => {
+  const fetchClusterLog = async (clusterId) => {
+    if (!clusterId) {
+      setClusterLog(null);
+      return;
+    }
+    try {
+      setClusterLogLoading(true);
+      setClusterLogError(null);
+
+      const endpoint = `/earas-form1-entry/common-api/cluster-log/${clusterId}`;
+      const candidates = [];
+      if (mainapi.FORM_API) {
+        candidates.push(`${mainapi.FORM_API}${endpoint}`);
+      }
+      if (BASE_URL && BASE_URL !== mainapi.FORM_API) {
+        candidates.push(`${BASE_URL}${endpoint}`);
+      }
+      if (!candidates.some((u) => u.includes(':8080'))) {
+        candidates.push(`${endpoint}`);
+      }
+
+      const token = localStorage.getItem('token');
+      const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
+      let logData = null;
+      let lastErr = null;
+
+      for (const url of candidates) {
+        try {
+          const res = await axios.get(url, { headers: authHeader, timeout: 8000 });
+          if (res?.data) {
+            logData = res.data?.payload || res.data?.data || res.data;
+            break;
+          }
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      if (logData) {
+        setClusterLog(logData);
+      } else {
+        throw lastErr || new Error('No data received from cluster-log endpoint');
+      }
+    } catch (err) {
+      console.warn('Failed to fetch cluster-log:', err);
+      setClusterLogError(
+        err?.response?.data?.message || err.message || 'Unable to fetch cluster log details'
+      );
+    } finally {
+      setClusterLogLoading(false);
+    }
+  };
+
+  const resolveAndFetchClusterLog = async (row, previewData = null) => {
+    let cId = getClusterId(row, previewData);
+
+    if (!cId && row?.keyplotId) {
+      try {
+        const kpRes = await api.get(`/btr-service/key-plots/get-keyplot/${row.keyplotId}`);
+        const kpData = kpRes?.data?.payload || kpRes?.data;
+        cId = kpData?.clusterId || kpData?.cluster_id;
+      } catch (err) {
+        console.warn('Could not resolve clusterId from keyplot endpoint:', err);
+      }
+    }
+
+    if (!cId && row?.impactSnapshot?.hasCluster && row?.impactSnapshot?.clusterNumber) {
+      cId = row.impactSnapshot.clusterNumber;
+    }
+
+    if (cId) {
+      await fetchClusterLog(cId);
+    } else {
+      setClusterLog(null);
+    }
+  };
+
+  const fetchImpactPreview = async (requestId, rowContext = null) => {
     if (!requestId) return;
     try {
       setImpactLoading(true);
@@ -343,6 +484,7 @@ function KeyplotDeletionRequests() {
 
       const token = localStorage.getItem('token');
       const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+      alert(requestId)
       const endpoint = `/btr-service/keyplot-deletion-requests/keyplot_deletion_impact_preview/${requestId}`;
 
       // Build candidate URLs: BTR_API, BASE_URL, and direct 8082 fallback
@@ -353,8 +495,8 @@ function KeyplotDeletionRequests() {
       if (BASE_URL && BASE_URL !== mainapi.BTR_API) {
         candidates.push(`${BASE_URL}${endpoint}`);
       }
-      if (!candidates.some((u) => u.includes(':8082'))) {
-        candidates.push(`http://localhost:8082${endpoint}`);
+      if (!candidates.some((u) => u.includes(':8080'))) {
+        candidates.push(`${BASE_URL}${endpoint}`);
       }
 
       let data = null;
@@ -374,6 +516,7 @@ function KeyplotDeletionRequests() {
 
       if (data) {
         setImpactPreview(data);
+        resolveAndFetchClusterLog(rowContext || selectedRequest, data);
       } else {
         throw lastError || new Error('No response from impact preview service');
       }
@@ -382,18 +525,25 @@ function KeyplotDeletionRequests() {
       setImpactError(
         err?.response?.data?.message || err.message || 'Unable to load real-time impact preview'
       );
+      resolveAndFetchClusterLog(rowContext || selectedRequest);
     } finally {
       setImpactLoading(false);
     }
   };
 
   const handleViewDetails = (row) => {
+    console.log()
     setSelectedRequest(row);
     setViewDialog(true);
     setImpactPreview(null);
     setImpactError(null);
+    setClusterLog(null);
+    setClusterLogError(null);
+    setActiveTab(0);
     if (row?.requestId) {
-      fetchImpactPreview(row.requestId);
+      fetchImpactPreview(row.requestId, row);
+    } else {
+      resolveAndFetchClusterLog(row);
     }
   };
 
@@ -402,8 +552,14 @@ function KeyplotDeletionRequests() {
     setActionType('APPROVED');
     setRemarks('');
     setActionDialog(true);
+    setImpactPreview(null);
+    setImpactError(null);
+    setClusterLog(null);
+    setClusterLogError(null);
     if (row?.requestId) {
-      fetchImpactPreview(row.requestId);
+      fetchImpactPreview(row.requestId, row);
+    } else {
+      resolveAndFetchClusterLog(row);
     }
   };
 
@@ -417,6 +573,8 @@ function KeyplotDeletionRequests() {
     setSelectedRequest(null);
     setActionType('APPROVED');
     setRemarks('');
+    setClusterLog(null);
+    setClusterLogError(null);
   };
 
   const handleSubmitAction = async () => {
@@ -443,6 +601,7 @@ function KeyplotDeletionRequests() {
         requestNumber: selectedRequest.requestNumber,
         keyplotId: selectedRequest.keyplotId,
         btrId: selectedRequest.btrId,
+        clusterId: getClusterId(selectedRequest, impactPreview),
         status: actionType,
         remarks: remarks.trim() || null,
         approvedRemark: remarks.trim() || null,
@@ -557,18 +716,18 @@ function KeyplotDeletionRequests() {
   };
 
   const columns = [
-    { key: 'slNo', label: 'Sl No', sortable: false },
-    { key: 'requestNumber', label: 'Request No', sortable: true },
-    { key: 'landType', label: 'Land Type', sortable: true },
-    { key: 'zoneName', label: 'Zone', sortable: true },
-    { key: 'talukName', label: 'Taluk', sortable: true },
-    { key: 'districtName', label: 'District', sortable: true },
-    { key: 'reason', label: 'Reason', sortable: false },
-    { key: 'impact', label: 'Impact / Cluster', sortable: false },
-    { key: 'requestedByName', label: 'Requested By', sortable: true },
-    { key: 'requestedAt', label: 'Requested On', sortable: true },
-    { key: 'status', label: 'Status', sortable: true },
-    { key: 'action', label: 'Actions', sortable: false }
+    { key: 'slNo', label: 'Sl No', sortable: false, minWidth: 70 },
+    { key: 'requestNumber', label: 'Request No', sortable: true, minWidth: 160 },
+    { key: 'landType', label: 'Land Type', sortable: true, minWidth: 120 },
+    { key: 'zoneName', label: 'Zone', sortable: true, minWidth: 150 },
+    { key: 'talukName', label: 'Taluk', sortable: true, minWidth: 140 },
+    { key: 'districtName', label: 'District', sortable: true, minWidth: 140 },
+    { key: 'reason', label: 'Reason', sortable: false, minWidth: 220 },
+    { key: 'impact', label: 'Impact / Cluster', sortable: false, minWidth: 160 },
+    { key: 'requestedByName', label: 'Requested By', sortable: true, minWidth: 160 },
+    { key: 'requestedAt', label: 'Requested On', sortable: true, minWidth: 150 },
+    { key: 'status', label: 'Status', sortable: true, minWidth: 130 },
+    { key: 'action', label: 'Actions', sortable: false, minWidth: 110 }
   ];
 
   // Request Summary Card for Dialogs
@@ -979,8 +1138,35 @@ function KeyplotDeletionRequests() {
             </Box>
           ) : (
             <>
-              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                <Table>
+              <TableContainer
+                component={Paper}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  overflowX: 'auto',
+                  width: '100%',
+                  maxWidth: '100%',
+                  display: 'block',
+                  border: '1px solid #e0e0e0',
+                  boxShadow: 'none',
+                  '&::-webkit-scrollbar': {
+                    height: 8,
+                    width: 8
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: 4
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: '#05307a',
+                    borderRadius: 4,
+                    '&:hover': {
+                      backgroundColor: '#032050'
+                    }
+                  }
+                }}
+              >
+                <Table sx={{ minWidth: 1450, tableLayout: 'auto' }}>
                   <TableHead sx={{ bgcolor: '#05307a' }}>
                     <TableRow>
                       {columns.map((column) => (
@@ -990,7 +1176,9 @@ function KeyplotDeletionRequests() {
                             color: 'white',
                             fontWeight: 'bold',
                             py: 1.8,
+                            px: 2,
                             whiteSpace: 'nowrap',
+                            minWidth: column.minWidth,
                             borderRight: '1px solid rgba(255,255,255,0.1)',
                             '&:last-child': { borderRight: 'none' }
                           }}
@@ -1034,14 +1222,14 @@ function KeyplotDeletionRequests() {
                           }}
                         >
                           {/* Sl No */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', width: 70 }}>
                             <Typography variant="body2" fontWeight="medium">
                               {page * rowsPerPage + index + 1}
                             </Typography>
                           </TableCell>
 
                           {/* Request No */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 160 }}>
                             <Stack direction="row" alignItems="center" spacing={0.5}>
                               <Typography variant="body2" fontWeight={600} color="#05307a">
                                 {row.requestNumber || '—'}
@@ -1063,7 +1251,7 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Land Type */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>
                             <Chip
                               label={row.landType || '—'}
                               size="small"
@@ -1074,24 +1262,24 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Zone */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 150 }}>
                             <Typography variant="body2" fontWeight={500}>
                               {row.zoneName || '—'}
                             </Typography>
                           </TableCell>
 
                           {/* Taluk */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 140 }}>
                             <Chip label={row.talukName || '—'} size="small" variant="outlined" />
                           </TableCell>
 
                           {/* District */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 140 }}>
                             <Typography variant="body2">{row.districtName || '—'}</Typography>
                           </TableCell>
 
                           {/* Reason */}
-                          <TableCell sx={{ maxWidth: 220 }}>
+                          <TableCell sx={{ minWidth: 220, maxWidth: 300 }}>
                             <Tooltip title={row.reason || 'No reason provided'}>
                               <Typography
                                 variant="body2"
@@ -1108,7 +1296,7 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Impact / Cluster */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 160 }}>
                             {hasCluster ? (
                               <Tooltip
                                 title={`Cluster #${row.impactSnapshot?.clusterNumber ?? '—'} (${row.impactSnapshot?.totalClusterDetailsImpacted ?? 1} detail(s) impacted)`}
@@ -1134,14 +1322,14 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Requested By */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 160 }}>
                             <Typography variant="body2" fontWeight={500}>
                               {displayName(row.requestedByName, row.requestedBy)}
                             </Typography>
                           </TableCell>
 
                           {/* Requested On */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 150 }}>
                             <Typography variant="body2">{formatDate(row.requestedAt)}</Typography>
                             <Typography variant="caption" color="text.secondary">
                               {formatTime(row.requestedAt)}
@@ -1149,7 +1337,7 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Status */}
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 130 }}>
                             <Chip
                               icon={statusInfo.icon}
                               label={statusInfo.label}
@@ -1161,7 +1349,7 @@ function KeyplotDeletionRequests() {
                           </TableCell>
 
                           {/* Actions */}
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap', minWidth: 110 }}>
                             <Stack direction="row" spacing={0.5} justifyContent="center">
                               <Tooltip title="View Request Details">
                                 <IconButton
@@ -1220,7 +1408,7 @@ function KeyplotDeletionRequests() {
       <Dialog
         open={viewDialog}
         onClose={() => setViewDialog(false)}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           sx: {
@@ -1431,17 +1619,23 @@ function KeyplotDeletionRequests() {
                     size="small"
                     variant="outlined"
                     startIcon={
-                      impactLoading ? (
+                      impactLoading || clusterLogLoading ? (
                         <CircularProgress size={14} color="inherit" />
                       ) : (
                         <Refresh fontSize="small" />
                       )
                     }
-                    onClick={() => fetchImpactPreview(selectedRequest.requestId)}
-                    disabled={impactLoading}
+                    onClick={() => {
+                      if (selectedRequest?.requestId) {
+                        fetchImpactPreview(selectedRequest.requestId, selectedRequest);
+                      } else {
+                        resolveAndFetchClusterLog(selectedRequest);
+                      }
+                    }}
+                    disabled={impactLoading || clusterLogLoading}
                     sx={{ textTransform: 'none', py: 0.25, px: 1, fontSize: '0.75rem' }}
                   >
-                    {impactLoading ? 'Checking…' : 'Re-check Dependencies'}
+                    {impactLoading || clusterLogLoading ? 'Checking…' : 'Re-check Dependencies'}
                   </Button>
                 </Box>
 
@@ -1471,7 +1665,16 @@ function KeyplotDeletionRequests() {
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  {/* <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Cluster ID
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} color="#05307a">
+                      {getClusterId(selectedRequest, impactPreview) || '—'}
+                    </Typography>
+                  </Grid> */}
+
+                  <Grid item xs={6} sm={4}>
                     <Typography variant="caption" color="text.secondary" display="block">
                       Cluster Details Found
                     </Typography>
@@ -1488,7 +1691,7 @@ function KeyplotDeletionRequests() {
 
                 {/* Live Data Check Section with Loader */}
                 <Box sx={{ p: 2, pt: 1 }}>
-                  {impactLoading ? (
+                  {(impactLoading || clusterLogLoading) && !impactPreview && !clusterLog ? (
                     <Box
                       sx={{
                         p: 3,
@@ -1510,7 +1713,7 @@ function KeyplotDeletionRequests() {
                         Analyzing Tour Diary visits, crop records, NUC data, and linked cluster entries
                       </Typography>
                     </Box>
-                  ) : impactError ? (
+                  ) : impactError && !impactPreview && !clusterLog ? (
                     <Alert
                       severity="warning"
                       sx={{ borderRadius: 1.5 }}
@@ -1518,7 +1721,13 @@ function KeyplotDeletionRequests() {
                         <Button
                           color="inherit"
                           size="small"
-                          onClick={() => fetchImpactPreview(selectedRequest.requestId)}
+                          onClick={() => {
+                            if (selectedRequest?.requestId) {
+                              fetchImpactPreview(selectedRequest.requestId, selectedRequest);
+                            } else {
+                              resolveAndFetchClusterLog(selectedRequest);
+                            }
+                          }}
                         >
                           Retry
                         </Button>
@@ -1526,7 +1735,7 @@ function KeyplotDeletionRequests() {
                     >
                       {impactError}
                     </Alert>
-                  ) : impactPreview ? (
+                  ) : impactPreview || clusterLog ? (
                     <Stack spacing={2}>
                       {/* Metric Mini Cards */}
                       <Grid container spacing={1.5}>
@@ -1537,14 +1746,14 @@ function KeyplotDeletionRequests() {
                               p: 1.5,
                               borderRadius: 1.5,
                               textAlign: 'center',
-                              bgcolor: impactPreview.tourDiaryRecordsFound > 0 ? '#fff8e1' : '#f9fbf9',
-                              borderColor: impactPreview.tourDiaryRecordsFound > 0 ? '#ffe082' : '#e0e0e0'
+                              bgcolor: impactPreview?.tourDiaryRecordsFound > 0 ? '#fff8e1' : '#f9fbf9',
+                              borderColor: impactPreview?.tourDiaryRecordsFound > 0 ? '#ffe082' : '#e0e0e0'
                             }}
                           >
                             <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
                               <DirectionsCar
                                 fontSize="small"
-                                sx={{ color: impactPreview.tourDiaryRecordsFound > 0 ? '#f57c00' : '#4caf50' }}
+                                sx={{ color: impactPreview?.tourDiaryRecordsFound > 0 ? '#f57c00' : '#4caf50' }}
                               />
                               <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                 TOUR DIARY
@@ -1553,9 +1762,9 @@ function KeyplotDeletionRequests() {
                             <Typography
                               variant="h5"
                               fontWeight={700}
-                              color={impactPreview.tourDiaryRecordsFound > 0 ? '#e65100' : '#2e7d32'}
+                              color={impactPreview?.tourDiaryRecordsFound > 0 ? '#e65100' : '#2e7d32'}
                             >
-                              {impactPreview.tourDiaryRecordsFound ?? 0}
+                              {impactPreview?.tourDiaryRecordsFound ?? 0}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               visit(s) found
@@ -1570,14 +1779,14 @@ function KeyplotDeletionRequests() {
                               p: 1.5,
                               borderRadius: 1.5,
                               textAlign: 'center',
-                              bgcolor: impactPreview.clusterDetailsFound > 0 ? '#ffebee' : '#f9fbf9',
-                              borderColor: impactPreview.clusterDetailsFound > 0 ? '#ffcdd2' : '#e0e0e0'
+                              bgcolor: impactPreview?.clusterDetailsFound > 0 ? '#ffebee' : '#f9fbf9',
+                              borderColor: impactPreview?.clusterDetailsFound > 0 ? '#ffcdd2' : '#e0e0e0'
                             }}
                           >
                             <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
                               <Hub
                                 fontSize="small"
-                                sx={{ color: impactPreview.clusterDetailsFound > 0 ? '#d32f2f' : '#4caf50' }}
+                                sx={{ color: impactPreview?.clusterDetailsFound > 0 ? '#d32f2f' : '#4caf50' }}
                               />
                               <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                 CLUSTER DETAILS
@@ -1586,9 +1795,9 @@ function KeyplotDeletionRequests() {
                             <Typography
                               variant="h5"
                               fontWeight={700}
-                              color={impactPreview.clusterDetailsFound > 0 ? '#c62828' : '#2e7d32'}
+                              color={impactPreview?.clusterDetailsFound > 0 ? '#c62828' : '#2e7d32'}
                             >
-                              {impactPreview.clusterDetailsFound ?? 0}
+                              {impactPreview?.clusterDetailsFound ?? selectedRequest?.impactSnapshot?.totalClusterDetailsImpacted ?? 0}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               row(s) impacted
@@ -1603,14 +1812,14 @@ function KeyplotDeletionRequests() {
                               p: 1.5,
                               borderRadius: 1.5,
                               textAlign: 'center',
-                              bgcolor: impactPreview.cropRecordsFound > 0 ? '#fff3e0' : '#f9fbf9',
-                              borderColor: impactPreview.cropRecordsFound > 0 ? '#ffcc80' : '#e0e0e0'
+                              bgcolor: (clusterLog?.cropDetails?.length > 0 || impactPreview?.cropRecordsFound > 0) ? '#fff3e0' : '#f9fbf9',
+                              borderColor: (clusterLog?.cropDetails?.length > 0 || impactPreview?.cropRecordsFound > 0) ? '#ffcc80' : '#e0e0e0'
                             }}
                           >
                             <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
                               <Agriculture
                                 fontSize="small"
-                                sx={{ color: impactPreview.cropRecordsFound > 0 ? '#ef6c00' : '#4caf50' }}
+                                sx={{ color: (clusterLog?.cropDetails?.length > 0 || impactPreview?.cropRecordsFound > 0) ? '#ef6c00' : '#4caf50' }}
                               />
                               <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                 CROP RECORDS
@@ -1619,9 +1828,9 @@ function KeyplotDeletionRequests() {
                             <Typography
                               variant="h5"
                               fontWeight={700}
-                              color={impactPreview.cropRecordsFound > 0 ? '#e65100' : '#2e7d32'}
+                              color={(clusterLog?.cropDetails?.length > 0 || impactPreview?.cropRecordsFound > 0) ? '#e65100' : '#2e7d32'}
                             >
-                              {impactPreview.cropRecordsFound ?? 0}
+                              {clusterLogLoading ? '…' : (clusterLog?.cropDetails ? clusterLog.cropDetails.length : (impactPreview?.cropRecordsFound ?? 0))}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               record(s) found
@@ -1636,14 +1845,14 @@ function KeyplotDeletionRequests() {
                               p: 1.5,
                               borderRadius: 1.5,
                               textAlign: 'center',
-                              bgcolor: impactPreview.nucRecordsFound > 0 ? '#f3e5f5' : '#f9fbf9',
-                              borderColor: impactPreview.nucRecordsFound > 0 ? '#e1bee7' : '#e0e0e0'
+                              bgcolor: (clusterLog?.nucDetails?.length > 0 || impactPreview?.nucRecordsFound > 0) ? '#f3e5f5' : '#f9fbf9',
+                              borderColor: (clusterLog?.nucDetails?.length > 0 || impactPreview?.nucRecordsFound > 0) ? '#e1bee7' : '#e0e0e0'
                             }}
                           >
                             <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
                               <Layers
                                 fontSize="small"
-                                sx={{ color: impactPreview.nucRecordsFound > 0 ? '#7b1fa2' : '#4caf50' }}
+                                sx={{ color: (clusterLog?.nucDetails?.length > 0 || impactPreview?.nucRecordsFound > 0) ? '#7b1fa2' : '#4caf50' }}
                               />
                               <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                 NUC RECORDS
@@ -1652,9 +1861,9 @@ function KeyplotDeletionRequests() {
                             <Typography
                               variant="h5"
                               fontWeight={700}
-                              color={impactPreview.nucRecordsFound > 0 ? '#6a1b9a' : '#2e7d32'}
+                              color={(clusterLog?.nucDetails?.length > 0 || impactPreview?.nucRecordsFound > 0) ? '#6a1b9a' : '#2e7d32'}
                             >
-                              {impactPreview.nucRecordsFound ?? 0}
+                              {clusterLogLoading ? '…' : (clusterLog?.nucDetails ? clusterLog.nucDetails.length : (impactPreview?.nucRecordsFound ?? 0))}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               record(s) found
@@ -1663,82 +1872,420 @@ function KeyplotDeletionRequests() {
                         </Grid>
                       </Grid>
 
-                      {/* Tour Diary Visits Sub-Table */}
-                      {Array.isArray(impactPreview.tourDiaryVisits) && impactPreview.tourDiaryVisits.length > 0 ? (
-                        <Box sx={{ mt: 1 }}>
-                          <Typography
-                            variant="subtitle2"
-                            fontWeight={600}
-                            color="#05307a"
-                            sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.8 }}
+                      {/* Detailed Dependency Tabs */}
+                      <Box sx={{ mt: 1 }}>
+                        <Box sx={{ borderBottom: 1, borderColor: '#e0e0e0', bgcolor: '#f4f7fb', borderRadius: '8px 8px 0 0' }}>
+                          <Tabs
+                            value={activeTab}
+                            onChange={(e, val) => setActiveTab(val)}
+                            textColor="primary"
+                            indicatorColor="primary"
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            sx={{
+                              minHeight: 40,
+                              '& .MuiTab-root': {
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                fontSize: '0.82rem',
+                                minHeight: 40,
+                                py: 0.5,
+                                px: 2
+                              }
+                            }}
                           >
-                            <DirectionsCar fontSize="small" />
-                            Associated Tour Diary Visits ({impactPreview.tourDiaryVisits.length})
-                          </Typography>
-                          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, overflow: 'hidden' }}>
-                            <Table size="small">
-                              <TableHead sx={{ bgcolor: '#05307a' }}>
-                                <TableRow>
-                                  <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>
-                                    Action Date
-                                  </TableCell>
-                                  <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>
-                                    Entry Type
-                                  </TableCell>
-                                  <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>
-                                    Status
-                                  </TableCell>
-                                  <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>
-                                    Distance
-                                  </TableCell>
-                                  <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>
-                                    Remark
-                                  </TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {impactPreview.tourDiaryVisits.map((visit, vIdx) => (
-                                  <TableRow key={vIdx} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fbfcfd' } }}>
-                                    <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                      {formatDate(visit.actionDate)}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Chip
-                                        label={visit.reportEntryType || 'SYSTEM'}
-                                        size="small"
-                                        variant="outlined"
-                                        color={visit.reportEntryType === 'MANUAL' ? 'secondary' : 'default'}
-                                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <Chip
-                                        label={visit.status || 'RECORDED'}
-                                        size="small"
-                                        color="success"
-                                        variant="filled"
-                                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                                      />
-                                    </TableCell>
-                                    <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                                      {visit.distance != null ? `${visit.distance} km` : '—'}
-                                    </TableCell>
-                                    <TableCell sx={{ fontSize: '0.8rem', color: visit.remark ? 'text.primary' : 'text.secondary' }}>
-                                      {visit.remark || '—'}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
+                            <Tab
+                              icon={<Agriculture sx={{ fontSize: 18 }} />}
+                              iconPosition="start"
+                              label={`Crop Records (${clusterLog?.cropDetails ? clusterLog.cropDetails.length : (impactPreview?.cropRecordsFound ?? 0)})`}
+                            />
+                            <Tab
+                              icon={<Layers sx={{ fontSize: 18 }} />}
+                              iconPosition="start"
+                              label={`NUC Details (${clusterLog?.nucDetails ? clusterLog.nucDetails.length : (impactPreview?.nucRecordsFound ?? 0)})`}
+                            />
+                            <Tab
+                              icon={<DirectionsCar sx={{ fontSize: 18 }} />}
+                              iconPosition="start"
+                              label={`Tour Diary (${impactPreview?.tourDiaryVisits?.length ?? impactPreview?.tourDiaryRecordsFound ?? 0})`}
+                            />
+                            {((clusterLog?.landUtilizationDetails && clusterLog.landUtilizationDetails.length > 0) ||
+                              (clusterLog?.irrigationDetails && clusterLog.irrigationDetails.length > 0) ||
+                              (clusterLog?.availablePlotDetails && clusterLog.availablePlotDetails.length > 0)) && (
+                                <Tab
+                                  icon={<FactCheck sx={{ fontSize: 18 }} />}
+                                  iconPosition="start"
+                                  label="Other Cluster Records"
+                                />
+                              )}
+                          </Tabs>
                         </Box>
-                      ) : (
-                        <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
-                          <Typography variant="body2" color="#166534">
-                            ✓ No Tour Diary visits recorded for this cluster.
-                          </Typography>
-                        </Box>
-                      )}
+
+                        {/* TAB 0: CROPS */}
+                        {activeTab === 0 && (
+                          <Box sx={{ pt: 2 }}>
+                            {clusterLogLoading ? (
+                              <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <CircularProgress size={26} sx={{ color: '#05307a' }} />
+                                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                                  Fetching cluster crop records from Form 1 log...
+                                </Typography>
+                              </Box>
+                            ) : clusterLog?.cropDetails && clusterLog.cropDetails.length > 0 ? (
+                              <Stack spacing={1.5}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                  <Typography variant="subtitle2" fontWeight={600} color="#05307a">
+                                    Found {clusterLog.cropDetails.length} crop record(s) in this cluster
+                                  </Typography>
+                                  <Chip
+                                    label={`Total Cultivated Area: ${totalCropArea.toFixed(2)} cent`}
+                                    size="small"
+                                    sx={{ bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, border: '1px solid #a5d6a7' }}
+                                  />
+                                </Box>
+
+                                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, maxHeight: 320, overflow: 'auto', '&::-webkit-scrollbar': { height: 6, width: 6 }, '&::-webkit-scrollbar-thumb': { backgroundColor: '#05307a', borderRadius: 3 } }}>
+                                  <Table size="small" stickyHeader sx={{ minWidth: 720 }}>
+                                    <TableHead>
+                                      <TableRow>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>#</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Crop Name</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Type</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Growth Stage</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="right">Area</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="center">Irrigated</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Season</TableCell>
+                                      </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                      {clusterLog.cropDetails.map((crop, cIdx) => (
+                                        <TableRow key={crop.id || cIdx} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fbfcfd' } }}>
+                                          <TableCell sx={{ fontSize: '0.78rem', py: 0.8, color: 'text.secondary' }}>{cIdx + 1}</TableCell>
+                                          <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#1a237e' }}>
+                                            {cleanCropName(crop.cropNameEn || crop.cropName)}
+                                          </TableCell>
+                                          <TableCell sx={{ fontSize: '0.78rem', py: 0.8 }}>
+                                            <Chip
+                                              label={crop.cropType || 'seasonal'}
+                                              size="small"
+                                              variant="outlined"
+                                              sx={{ height: 20, fontSize: '0.7rem', textTransform: 'capitalize' }}
+                                            />
+                                          </TableCell>
+                                          <TableCell sx={{ fontSize: '0.78rem', py: 0.8, color: 'text.secondary' }}>
+                                            {crop.cropGrowthStage || 'No classification'}
+                                          </TableCell>
+                                          <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600, py: 0.8 }} align="right">
+                                            {crop.cropArea != null ? `${crop.cropArea} ${crop.unit || 'cent'}` : '—'}
+                                          </TableCell>
+                                          <TableCell align="center" sx={{ py: 0.8 }}>
+                                            <Chip
+                                              label={crop.isIrrigated ? 'Yes' : 'No'}
+                                              size="small"
+                                              color={crop.isIrrigated ? 'success' : 'default'}
+                                              variant={crop.isIrrigated ? 'filled' : 'outlined'}
+                                              sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                            />
+                                          </TableCell>
+                                          <TableCell sx={{ fontSize: '0.78rem', py: 0.8 }}>
+                                            <Chip
+                                              label={getSeasonName(crop.seasonId)}
+                                              size="small"
+                                              variant="outlined"
+                                              color="primary"
+                                              sx={{ height: 20, fontSize: '0.7rem' }}
+                                            />
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </TableContainer>
+                              </Stack>
+                            ) : (
+                              <Box sx={{ p: 2, bgcolor: '#f0fdf4', borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
+                                <Typography variant="body2" color="#166534">
+                                  ✓ No crop records recorded for this cluster.
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* TAB 1: NUC DETAILS */}
+                        {activeTab === 1 && (
+                          <Box sx={{ pt: 2 }}>
+                            {clusterLogLoading ? (
+                              <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <CircularProgress size={26} sx={{ color: '#05307a' }} />
+                                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                                  Fetching NUC entries from Form 1 log...
+                                </Typography>
+                              </Box>
+                            ) : clusterLog?.nucDetails && clusterLog.nucDetails.length > 0 ? (
+                              <Stack spacing={1.5}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                  <Typography variant="subtitle2" fontWeight={600} color="#05307a">
+                                    Found {clusterLog.nucDetails.length} NUC block entry(s)
+                                  </Typography>
+                                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <Chip
+                                      label={`NUC: ${totalNucSummary.nucArea.toFixed(1)} cents`}
+                                      size="small"
+                                      sx={{ bgcolor: '#f3e5f5', color: '#6a1b9a', fontWeight: 600, border: '1px solid #e1bee7' }}
+                                    />
+                                    <Chip
+                                      label={`FFS: ${totalNucSummary.ffsArea.toFixed(1)} cents`}
+                                      size="small"
+                                      sx={{ bgcolor: '#e1f5fe', color: '#0277bd', fontWeight: 600, border: '1px solid #b3e5fc' }}
+                                    />
+                                    <Chip
+                                      label={`COS: ${totalNucSummary.cosArea.toFixed(1)} cents`}
+                                      size="small"
+                                      sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 600, border: '1px solid #ffe0b2' }}
+                                    />
+                                    <Chip
+                                      label={`Total: ${totalNucSummary.totalArea.toFixed(1)} cents`}
+                                      size="small"
+                                      sx={{ bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 700, border: '1px solid #a5d6a7' }}
+                                    />
+                                  </Stack>
+                                </Box>
+
+                                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, maxHeight: 320, overflow: 'auto', '&::-webkit-scrollbar': { height: 6, width: 6 }, '&::-webkit-scrollbar-thumb': { backgroundColor: '#05307a', borderRadius: 3 } }}>
+                                  <Table size="small" stickyHeader sx={{ minWidth: 840 }}>
+                                    <TableHead>
+                                      <TableRow>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>#</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Cluster Label</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="right">NUC Area (cents)</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="right">FFS Area (cents)</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="right">COS Area (cents)</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }} align="right">Block Total (cents)</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Season</TableCell>
+                                        <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Remark</TableCell>
+                                      </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                      {clusterLog.nucDetails.map((nuc, nIdx) => {
+                                        const blockTotal =
+                                          (Number(nuc.nucArea) || 0) +
+                                          (Number(nuc.ffsArea) || 0) +
+                                          (Number(nuc.cosArea) || 0);
+                                        return (
+                                          <TableRow key={nuc.nucId || nIdx} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fbfcfd' } }}>
+                                            <TableCell sx={{ fontSize: '0.78rem', py: 0.8, color: 'text.secondary' }}>{nIdx + 1}</TableCell>
+                                            <TableCell sx={{ py: 0.8 }}>
+                                              <Chip
+                                                label={nuc.clusterLabel || '—'}
+                                                size="small"
+                                                sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                              />
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600, py: 0.8 }} align="right">
+                                              {nuc.nucArea ?? 0}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600, py: 0.8 }} align="right">
+                                              {nuc.ffsArea ?? 0}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600, py: 0.8 }} align="right">
+                                              {nuc.cosArea ?? 0}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#05307a', py: 0.8 }} align="right">
+                                              {blockTotal}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.78rem', py: 0.8 }}>
+                                              <Chip
+                                                label={getSeasonName(nuc.seasonId)}
+                                                size="small"
+                                                variant="outlined"
+                                                color="primary"
+                                                sx={{ height: 20, fontSize: '0.7rem' }}
+                                              />
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.78rem', py: 0.8, color: nuc.remark ? 'text.primary' : 'text.secondary' }}>
+                                              {nuc.remark || '—'}
+                                            </TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </TableContainer>
+                              </Stack>
+                            ) : (
+                              <Box sx={{ p: 2, bgcolor: '#f0fdf4', borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
+                                <Typography variant="body2" color="#166534">
+                                  ✓ No NUC records recorded for this cluster.
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* TAB 2: TOUR DIARY */}
+                        {activeTab === 2 && (
+                          <Box sx={{ pt: 2 }}>
+                            {Array.isArray(impactPreview?.tourDiaryVisits) && impactPreview.tourDiaryVisits.length > 0 ? (
+                              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, maxHeight: 320, overflow: 'auto', '&::-webkit-scrollbar': { height: 6, width: 6 }, '&::-webkit-scrollbar-thumb': { backgroundColor: '#05307a', borderRadius: 3 } }}>
+                                <Table size="small" stickyHeader sx={{ minWidth: 620 }}>
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Action Date</TableCell>
+                                      <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Entry Type</TableCell>
+                                      <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Status</TableCell>
+                                      <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Distance</TableCell>
+                                      <TableCell sx={{ bgcolor: '#05307a', color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Remark</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {impactPreview.tourDiaryVisits.map((visit, vIdx) => (
+                                      <TableRow key={vIdx} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fbfcfd' } }}>
+                                        <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                          {formatDate(visit.actionDate)}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Chip
+                                            label={visit.reportEntryType || 'SYSTEM'}
+                                            size="small"
+                                            variant="outlined"
+                                            color={visit.reportEntryType === 'MANUAL' ? 'secondary' : 'default'}
+                                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                          />
+                                        </TableCell>
+                                        <TableCell>
+                                          <Chip
+                                            label={visit.status || 'RECORDED'}
+                                            size="small"
+                                            color="success"
+                                            variant="filled"
+                                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                          />
+                                        </TableCell>
+                                        <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                          {visit.distance != null ? `${visit.distance} km` : '—'}
+                                        </TableCell>
+                                        <TableCell sx={{ fontSize: '0.8rem', color: visit.remark ? 'text.primary' : 'text.secondary' }}>
+                                          {visit.remark || '—'}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            ) : (
+                              <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
+                                <Typography variant="body2" color="#166534">
+                                  ✓ No Tour Diary visits recorded for this cluster.
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* TAB 3: OTHER CLUSTER RECORDS */}
+                        {activeTab === 3 && (
+                          <Box sx={{ pt: 2 }}>
+                            <Stack spacing={2}>
+                              {clusterLog?.landUtilizationDetails && clusterLog.landUtilizationDetails.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} color="#05307a" sx={{ mb: 1 }}>
+                                    Land Utilization Details ({clusterLog.landUtilizationDetails.length})
+                                  </Typography>
+                                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, overflowX: 'auto' }}>
+                                    <Table size="small" sx={{ minWidth: 500 }}>
+                                      <TableHead sx={{ bgcolor: '#05307a' }}>
+                                        <TableRow>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>#</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Type / Description</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Area (cents)</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Remarks</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {clusterLog.landUtilizationDetails.map((lu, luIdx) => (
+                                          <TableRow key={luIdx} hover>
+                                            <TableCell sx={{ fontSize: '0.78rem' }}>{luIdx + 1}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                                              {lu.utilizationType || lu.description || lu.landTypeName || '—'}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                              {lu.area != null ? `${lu.area} cents` : '—'}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.78rem' }}>{lu.remarks || '—'}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </TableContainer>
+                                </Box>
+                              )}
+
+                              {clusterLog?.irrigationDetails && clusterLog.irrigationDetails.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} color="#05307a" sx={{ mb: 1 }}>
+                                    Irrigation Details ({clusterLog.irrigationDetails.length})
+                                  </Typography>
+                                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, overflowX: 'auto' }}>
+                                    <Table size="small" sx={{ minWidth: 450 }}>
+                                      <TableHead sx={{ bgcolor: '#05307a' }}>
+                                        <TableRow>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>#</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Source / Method</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Area (cents)</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {clusterLog.irrigationDetails.map((ir, irIdx) => (
+                                          <TableRow key={irIdx} hover>
+                                            <TableCell sx={{ fontSize: '0.78rem' }}>{irIdx + 1}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                                              {ir.source || ir.irrigationType || '—'}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                              {ir.area != null ? `${ir.area} cents` : '—'}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </TableContainer>
+                                </Box>
+                              )}
+
+                              {clusterLog?.availablePlotDetails && clusterLog.availablePlotDetails.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} color="#05307a" sx={{ mb: 1 }}>
+                                    Available Plot Details ({clusterLog.availablePlotDetails.length})
+                                  </Typography>
+                                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1.5, overflowX: 'auto' }}>
+                                    <Table size="small" sx={{ minWidth: 450 }}>
+                                      <TableHead sx={{ bgcolor: '#05307a' }}>
+                                        <TableRow>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>#</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Plot Identification</TableCell>
+                                          <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', py: 1 }}>Status</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {clusterLog.availablePlotDetails.map((ap, apIdx) => (
+                                          <TableRow key={apIdx} hover>
+                                            <TableCell sx={{ fontSize: '0.78rem' }}>{apIdx + 1}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                                              {ap.plotNumber || ap.plotId || ap.id || '—'}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '0.78rem' }}>{ap.status || 'AVAILABLE'}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </TableContainer>
+                                </Box>
+                              )}
+                            </Stack>
+                          </Box>
+                        )}
+                      </Box>
                     </Stack>
                   ) : null}
                 </Box>
@@ -1866,7 +2413,7 @@ function KeyplotDeletionRequests() {
                 }}
                 sx={{ bgcolor: '#05307a' }}
               >
-                Review This Request
+                Proceed with This Request
               </Button>
             )}
           <Button onClick={() => setViewDialog(false)} variant="outlined">
@@ -1881,7 +2428,7 @@ function KeyplotDeletionRequests() {
         onClose={() => !submitting && closeActionDialog()}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, maxWidth: '540px', width: '100%' } }}
+        PaperProps={{ sx: { borderRadius: 3, maxWidth: '620px', width: '100%' } }}
       >
         <DialogTitle
           sx={{
@@ -1909,7 +2456,9 @@ function KeyplotDeletionRequests() {
         <DialogContent dividers sx={{ p: 3 }}>
           {actionType === 'APPROVED' ? (
             <Alert severity="error" icon={<Warning fontSize="small" />} sx={{ mb: 2.5, borderRadius: 2 }}>
-              <strong>Caution:</strong> Approving will remove this keyplot from the zone.
+              <strong>Critical Permanent Action:</strong> Approving this deletion request will{' '}
+              <strong>permanently erase</strong> this keyplot along with all linked cluster data, crops,
+              NUC records, and Form 1 log entries. This action cannot be undone.
               {selectedRequest?.impactSnapshot?.hasCluster && (
                 <span>
                   {' '}This keyplot has an associated cluster{' '}
@@ -1941,6 +2490,109 @@ function KeyplotDeletionRequests() {
           {selectedRequest && (
             <>
               <RequestSummary row={selectedRequest} />
+
+              {/* Permanent Wipeout Impact Summary Card */}
+              {actionType === 'APPROVED' && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    mb: 2.5,
+                    bgcolor: '#fff5f5',
+                    borderColor: '#ffcdd2',
+                    borderRadius: 2
+                  }}
+                >
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <DeleteForever color="error" fontSize="small" />
+                    <Typography variant="subtitle2" fontWeight={700} color="#c62828">
+                      Permanent Data Wipeout Warning
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                    Approving will permanently erase all associated records from the database:
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ p: 1, bgcolor: 'white', borderRadius: 1, border: '1px solid #ffcdd2', textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                          CROPS
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700} color="#e65100">
+                          {clusterLog?.cropDetails ? clusterLog.cropDetails.length : (impactPreview?.cropRecordsFound ?? 0)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ p: 1, bgcolor: 'white', borderRadius: 1, border: '1px solid #ffcdd2', textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                          NUC RECORDS
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700} color="#6a1b9a">
+                          {clusterLog?.nucDetails ? clusterLog.nucDetails.length : (impactPreview?.nucRecordsFound ?? 0)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ p: 1, bgcolor: 'white', borderRadius: 1, border: '1px solid #ffcdd2', textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                          CLUSTER DETAILS
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700} color="#c62828">
+                          {impactPreview?.clusterDetailsFound ?? selectedRequest?.impactSnapshot?.totalClusterDetailsImpacted ?? 1}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ p: 1, bgcolor: 'white', borderRadius: 1, border: '1px solid #ffcdd2', textAlign: 'center' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
+                          TOUR VISITS
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700} color="#f57c00">
+                          {impactPreview?.tourDiaryRecordsFound ?? 0}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  {/* Compact preview of crops & NUC labels */}
+                  {clusterLog?.cropDetails && clusterLog.cropDetails.length > 0 && (
+                    <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px dashed #ffcdd2' }}>
+                      <Typography variant="caption" fontWeight={600} color="#c62828" display="block" sx={{ mb: 0.5 }}>
+                        Crops to be deleted:
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5 }}>
+                        {clusterLog.cropDetails.map((c, i) => (
+                          <Chip
+                            key={i}
+                            size="small"
+                            label={`${cleanCropName(c.cropNameEn || c.cropName)} (${c.cropArea ?? 0} cent)`}
+                            sx={{ height: 20, fontSize: '0.68rem', bgcolor: '#ffebee', color: '#b71c1c' }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+
+                  {clusterLog?.nucDetails && clusterLog.nucDetails.length > 0 && (
+                    <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #ffcdd2' }}>
+                      <Typography variant="caption" fontWeight={600} color="#c62828" display="block" sx={{ mb: 0.5 }}>
+                        NUC Blocks to be deleted:
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5 }}>
+                        {clusterLog.nucDetails.map((n, i) => (
+                          <Chip
+                            key={i}
+                            size="small"
+                            label={`Block ${n.clusterLabel || '—'} (NUC: ${n.nucArea ?? 0}, FFS: ${n.ffsArea ?? 0}, COS: ${n.cosArea ?? 0})`}
+                            sx={{ height: 20, fontSize: '0.68rem', bgcolor: '#f3e5f5', color: '#4a148c' }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                </Paper>
+              )}
 
               {/* Decision selector */}
               <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>

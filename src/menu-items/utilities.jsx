@@ -150,7 +150,7 @@ if (role == 'Super Admin' || role === 'IT Admin' || role === 'District Level App
     // keyPlot,
     // clusterFormation
   );
-} else if (role === 'District Level Data Viewer') {
+} else if (role === 'District Level Data Viewer' || role === 'State Level Viewer') {
   utilities.children.push(
     // userApproval,
     // userManagement,

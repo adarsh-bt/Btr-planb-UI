@@ -952,6 +952,47 @@ const ClusterManualEntryNonBtr = () => {
     return { type: 'ABOVE_MEAN' };
   };
 
+  const hasValidRow = (keyplot) => {
+    if (!keyplot || !Array.isArray(keyplot.rows)) return false;
+
+    return keyplot.rows.some(row => {
+      if (BtrTypeId == 2) {
+        return row.villageName && row.block && row.ward_number && row.houseno && row.area && row.enumeratedArea;
+      } else if (BtrTypeId == 3) {
+        return row.villageName && row.block && row.ownername && row.address && row.area && row.enumeratedArea;
+      } else if (BtrTypeId == 4) {
+        return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
+      } else if (BtrTypeId == 5) {
+        return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
+      }
+      return false;
+    });
+  };
+
+  const validateSidePlotLabels = () => {
+    const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+    const emptyLabelPlots = sidePlots.filter(kp => !kp.label || kp.label.trim() === '');
+
+    if (emptyLabelPlots.length > 0) {
+      return {
+        isValid: false,
+        message: `${emptyLabelPlots.length} side plot(s) need label selection`
+      };
+    }
+
+    // Check for duplicate labels
+    const labels = sidePlots.map(kp => kp.label).filter(label => label);
+    const uniqueLabels = new Set(labels);
+    if (labels.length !== uniqueLabels.size) {
+      return {
+        isValid: false,
+        message: 'Duplicate labels detected. Please use unique labels for each side plot.'
+      };
+    }
+
+    return { isValid: true };
+  };
+
   const handleSubmit = () => {
     // 0. Validate NUC requirements first
     for (const [label, entries] of Object.entries(nucLabelDetails)) {
@@ -987,6 +1028,14 @@ const ClusterManualEntryNonBtr = () => {
         setSnackbarOpen(true);
         return;
       }
+    }
+
+    // First validate labels
+    const labelValidation = validateSidePlotLabels();
+    if (!labelValidation.isValid) {
+      setSnackbarMessage(labelValidation.message);
+      setSnackbarOpen(true);
+      return;
     }
 
     // Validate form requirements first
@@ -1846,8 +1895,8 @@ const ClusterManualEntryNonBtr = () => {
     const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
     if (!rowToRemove) return;
 
-    // NUC validation check
-    if (keyplot.label) {
+    // NUC validation check (only for existing saved rows)
+    if (!rowToRemove.isNew && rowToRemove.b_id && keyplot.label) {
       const nucInfo = getNucInfoForLabel(keyplot.label);
       if (nucInfo.isUsed) {
         const remainingRows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
@@ -1874,27 +1923,10 @@ const ClusterManualEntryNonBtr = () => {
       }
     }
 
-    // If it's an existing row (has b_id), add to removed rows tracking
+    // If it's an existing row (has b_id), show confirmation dialog
     if (rowToRemove && rowToRemove.b_id) {
       handleOpenConfirmDialog(keyplotId, rowUniqueId);
-    } else {
-      setRemovedRows(prev => [...prev, {
-        b_id: rowToRemove.b_id,
-        plot_id: rowToRemove.plot_id,
-        keyplotLabel: keyplot.label,
-        villageName: rowToRemove.villageName,
-        block: rowToRemove.block,
-        ward_number: rowToRemove.ward_number,
-        houseno: rowToRemove.houseno,
-        ownername: rowToRemove.ownername,
-        address: rowToRemove.address,
-        // area:rowToRemove.area,
-        tpno: rowToRemove.tpno,
-        tbsubdivisionno: rowToRemove.tbsubdivisionno,
-        oldsvno: rowToRemove.oldsvno,
-        oldsubno: rowToRemove.oldsubno
-      }]);
-
+      return;
     }
 
     // Remove the row from UI
@@ -2290,46 +2322,36 @@ const ClusterManualEntryNonBtr = () => {
     }
   };
 
+  const isStatusEditable = (s) => {
+    if (!s || typeof s !== 'string') return true;
+    const normalized = s.trim().toLowerCase().replace(/[\s_]+/g, '');
+    if (normalized === 'completed' || normalized === 'underreview') {
+      return false;
+    }
+    return normalized === 'ongoing' || normalized === 'notstarted';
+  };
+
+  const isStatusOngoing = (s) => isStatusEditable(s);
+
   const isSubmitDisabled = () => {
-    if (hasAnyError || submitting) return true;
-    if (!isedit) {
-      return true;
-    }
+    if (hasAnyError || submitting || !isStatusEditable(status)) return true;
 
+    // ✅ Check K (Keyplot)
+    const kPlot = keyplotsData.find(kp => kp.label === 'K');
+    if (!hasValidRow(kPlot)) return true;
 
-    // if (status === "Completed" || status === "Under Review") {
-    //   return true;
-    // }
+    // ✅ Check if all 4 side plots have labels selected
+    const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+    const sidePlotsWithLabels = sidePlots.filter(kp => kp.label && kp.label.trim() !== '');
 
+    // Need exactly 4 side plots with labels
+    if (sidePlotsWithLabels.length < 4) return true;
 
-    const keyplotData = keyplotsData.find(kp => kp.label === 'K');
-    if (!keyplotData || keyplotData.rows.length === 0) return true;
+    // ✅ Check side plots have valid rows
+    const validSidePlotCount = sidePlotsWithLabels.filter(kp => hasValidRow(kp)).length;
 
-    for (const keyplot of keyplotsData) {
-      for (const row of keyplot.rows) {
-
-        if (BtrTypeId == 2) {
-
-          if (!row.villageName || !row.block || !row.houseno || !row.ward_number || !row.area || !row.enumeratedArea) {
-            return true;
-          }
-        } else if (BtrTypeId == 3) {
-          if (!row.villageName || !row.block || !row.ownername || !row.address || !row.area || !row.enumeratedArea) {
-            return true;
-          }
-        } else if (BtrTypeId == 4) {
-          if (!row.villageName || !row.block || !row.tpno || !row.area || !row.enumeratedArea) {
-            return true;
-          }
-        } else if (BtrTypeId == 5) {
-          if (!row.villageName || !row.block || !row.oldsvno || !row.area || !row.enumeratedArea) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
+    // Need at least 4 side plots with valid rows
+    return validSidePlotCount < 4;
   };
 
   // Add getMissingLabels function
@@ -2871,7 +2893,7 @@ const ClusterManualEntryNonBtr = () => {
               (!isKeyPlotFirstRow || isNewRow) && (
                 <Tooltip title="Remove Row">
                   <IconButton
-                    disabled={isSubmitDisabled()}
+                    disabled={submitting}
                     color="error"
                     onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
                   >
@@ -2936,7 +2958,13 @@ const ClusterManualEntryNonBtr = () => {
 
               <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
               {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
-              <Tooltip title="Submit">
+              <Tooltip title={
+                hasNucError ? "Resolve NUC validation errors before saving" :
+                  !validateSidePlotLabels().isValid ?
+                    validateSidePlotLabels().message :
+                    getMissingLabels().length > 0 ?
+                      `Add rows to: ${getMissingLabels().join(', ')}` :
+                      "Submit"}>
                 <span>
                   {role === 'Field Data Collector' && (
                     <Button
@@ -3047,7 +3075,7 @@ const ClusterManualEntryNonBtr = () => {
           <Grid container spacing={2} alignItems="center" justifyContent="center">
             <Grid item>
               {role === 'Field Data Collector' && (
-                <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
+                <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isStatusEditable(status)}>Add CCE crops</Button></Grid>)}
             </Grid>
             <Grid item>{(
               (
@@ -3246,7 +3274,7 @@ const ClusterManualEntryNonBtr = () => {
                     <Tooltip title={`Used in NUC: ${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}`}>
                       <Chip
                         icon={<GrassIcon style={{ color: '#fff', fontSize: '1rem' }} />}
-                        label={`NUC: ${nucInfo.maxNucArea} cents`}
+                        label={`NUC ,FFS ,COS: ${nucInfo.maxNucArea} cents`}
                         size="small"
                         sx={{
                           backgroundColor: isAreaBelowNuc ? '#b71c1c' : 'rgba(255, 255, 255, 0.25)',
@@ -3319,7 +3347,7 @@ const ClusterManualEntryNonBtr = () => {
                       variant="contained"
                       color="success"
                       onClick={() => handleAddRow(keyplot.id)}
-                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}
+                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isStatusEditable(status)}
                     >
                       Add Row
                     </Button>
@@ -3331,13 +3359,15 @@ const ClusterManualEntryNonBtr = () => {
         })}
 
         {/* Main Submit Button */}
-        {role === 'Field Data Collector' && isedit && (
+        {role === 'Field Data Collector' && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
             <Tooltip title={
               hasNucError ? "Resolve NUC validation errors before saving" :
-                getMissingLabels().length > 0 ?
-                  `Add rows to: ${getMissingLabels().join(', ')}` :
-                  "Save cluster data"}>
+                !validateSidePlotLabels().isValid ?
+                  validateSidePlotLabels().message :
+                  getMissingLabels().length > 0 ?
+                    `Add rows to: ${getMissingLabels().join(', ')}` :
+                    "Save cluster data"}>
               <span>
                 <Button
                   variant="contained"

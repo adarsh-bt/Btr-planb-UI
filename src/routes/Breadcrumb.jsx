@@ -316,8 +316,8 @@ const Breadcrumb = () => {
         }
       }
 
-      // TALUK segment
-      if (isZoneLevel || isForm5OverviewPage || isCceDataViewPage) {
+      // TALUK segment (not shown for Field Data Collector since they cannot view Taluk-Zone report)
+      if (officeType !== 'FIELD_DATA_COLLECTOR' && (isZoneLevel || isForm5OverviewPage || isCceDataViewPage)) {
         const rawTalukLabel = f5TalukName ? f5TalukName.split('-')[0] : '';
         const talukLabel = rawTalukLabel ? `Taluk: ${formatLabel(rawTalukLabel)}` : 'Taluk';
         const formattedTalukSlug = f5TalukName ? f5TalukName : (rawTalukLabel && f5TalukId ? `${rawTalukLabel.toLowerCase()}-${f5TalukId}` : '');

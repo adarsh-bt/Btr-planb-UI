@@ -342,30 +342,26 @@ function ReportMenuWrapper({ children }) {
         officeType = 'FIELD_DATA_COLLECTOR';
       }
 
-      // ── FIELD DATA COLLECTOR ── Jump straight to Zone-wise CCE report for their zone
+      // ── FIELD DATA COLLECTOR ── Redirect directly to CCE Progress Status Overview (Form 5)
       if (officeType === 'FIELD_DATA_COLLECTOR') {
         const zoneId = currentOfficeInfo.zoneId || AuthService.getzone();
         const talukIdValue = talukOfficeId || talukId;
-        const dName = districtName || 'district';
-        const tName = talukName || 'taluk';
 
-        navigate(
-          `/kerala_form5_report/taluk_form5_report/zone_form5_report/${encodeURIComponent(dName)}/${encodeURIComponent(tName)}`,
-          {
-            state: {
-              officeType,
-              viewLevel: 'cluster',
-              zoneId,
-              zoneName: currentOfficeInfo.zoneName || '',
-              talukId: talukIdValue,
-              talukOfficeId: talukIdValue,
-              talukName: talukName || '',
-              districtId: districtOfficeId || districtId || null,
-              districtName: districtName || '',
-              isDirectAccess: true,
-            },
-          }
-        );
+        navigate('/schemes/earas/cce/Form5', {
+          state: {
+            officeType,
+            viewLevel: 'cceOverview',
+            zoneId,
+            zoneName: currentOfficeInfo.zoneName || '',
+            talukId: talukIdValue,
+            talukOfficeId: talukIdValue,
+            talukName: talukName || '',
+            districtId: districtOfficeId || districtId || null,
+            districtName: districtName || '',
+            agriculturalYear: AuthService.agriyear() || '2025-2026',
+            isDirectAccess: true,
+          },
+        });
       }
 
       // ── DIRECTORATE ── State-level list
